@@ -1,0 +1,19 @@
+# Development Log: SG-TERRA (SG_proj_007)
+
+## 2026-03-16
+- 프로젝트 SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI) 초기 기획안을 검토 및 Readme.md에 통합 반영
+- 프로젝트의 주요 목표: SAM 2와 Depth-Anything-V2를 결합하여 강판 표면의 3D 입체 구조(곡률, 조도 등)를 단안 이미지에서 추출하고, 최적의 점착 필름을 추천하는 AI 솔루션 개발
+- 핵심 모듈 구성(SEG, TOPO, CURV, MATCH) 및 하드웨어 인프라 전략 확인
+- 향후 주요 과제로 Latency 최적화, 데이터셋 API 연동, Model Fine-tuning을 설정함
+- 프로젝트 초기 설정 (방안 A) 착수: data, models, src, scripts 등의 코어 디렉토리 구조 셋업 및 .gitignore, requirements.txt 초기화 완료
+- src 하위 모듈(seg, topo, curv, match) 패키지화 및 환경 설정용 스크립트(setup_env.sh) 작성
+- SAM 2 및 Depth-Anything-V2 모델 가중치를 다운로드 받기 위한 스크립트(scripts/download_weights.sh) 작성
+- `src/match/engine.py` 파일 생성, CSV 기반 필름 물성 매핑 초안 로직(KnowledgeEngine) 개발
+- `src/seg/sam2_wrapper.py` 파일 생성, 하드웨어 호환성(MPS, CUDA)을 고려한 SAM 2 기본 Wrapper Class 및 로딩 최적화 파이프라인 구현 착수
+- `src/topo/depth_wrapper.py` 로직 개발 완료. SAM 2의 마스크를 인자로 받아 불필요한 영역을 날리는 Resolution Cropping 전략 초안 반영
+- SAM 2 및 Depth-Anything-V2 가중치 백그라운드 다운로드 프로세스 트리거
+- `src/curv/curvature.py` 파일 생성, 노이즈 저감을 위한 Gaussian smoothing 기반 1차/2차 편미분을 통한 Gaussian(K) / Mean(H) Curvature 수학적 연산 및 임계 지점(Stress Concentration) 도출 로직 구현
+- `main.py` 진입점 파일 생성 및 초기 Mock Data 기반의 엔드투엔드 파이프라인(Segmentation -> Depth -> Curvature -> Matching) 테스트 구동 성공 (Total Execution: ~185ms)
+- 추가 지시에 따라 모델 패키지(SAM 2, Depth-Anything-V2) 설치 및 실기반 통합 파이프라인(`test_pipeline.py`) 구축
+- 검증용 강판 샘플 이미지 기반 전체 모듈 실제 추론 가동 성공. MPS(Metal Performance Shaders) 환경 하에 Segmentation 약 3초, Depth 추론 약 5.6초 소요 (총 소요 시간: ~8.7초). 향후 최우선 해결 과제인 Latency 병목 구간(Depth-V2) 식별
+

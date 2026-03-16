@@ -10,8 +10,13 @@ Project Alias: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 
 ## 2. Repository Overview
 - Repository Name: SG_proj_007
-- Primary Tech Stack: Python, PyTorch, SAM 2, Depth-Anything-V2, OpenCV
+- Primary Tech Stack: Python, PyTorch, SAM 2, Depth-Anything-V2, OpenCV, Streamlit
 - Target Infrastructure: On-premise (RTX 5080) & Cloud (Google Antigravity)
+
+**✅ Current Status: MVP Operation Ready**
+- End-to-end multimodal pipeline (Segmentation ➡️ Depth ➡️ Curvature ➡️ Knowledge Engine matching) successfully implemented.
+- Streamlit interactive UI dashboard (`app.py`) deployed with interactive ROI selection to mitigate background noise.
+- Live inference testing completed using Metal Performance Shaders (MPS) on local MacBook Pro M2 environments.
 
 ## 3. Technical Architecture (Multimodal Pipeline)
 시스템은 '시각적 형상 파악'과 '물성 매칭'의 두 단계로 구성됨.

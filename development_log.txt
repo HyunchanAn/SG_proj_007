@@ -19,6 +19,7 @@
 - 통합 파이프라인의 입출력 결과(마스킹, 뎁스맵 등) 시각화 및 직관적 테스트 인터페이스를 제공하기 위해 Streamlit 기반 UI 대시보드(`app.py`) 개발 완료 (의존성 패키지 추가 반영)
 - 강판 내 뚫린 공간 등 배경 노이즈(Background Noise)를 타겟으로 오인하는 문제를 해결하기 위해, Streamlit 상에서 사용자가 마우스 클릭으로 SAM 2 Target ROI 좌표(x, y)를 직접 지정할 수 있도록 Interactive patching(`streamlit-image-coordinates`) 적용.
 - 사용자가 입체적인 표면을 더 직관적으로 파악할 수 있도록, Plotly(`go.Surface`) 라이브러리를 활용하여 등고선(Contour)이 포함된 3D Topographic Grid(격자) 인터랙티브 뷰 기능을 추가함.
+- **[UI 개선]** 사용자 편의성을 위해 사이드바에 한국어/English 다국어(i18n) 동적 토글 기능을 추가하고 앱 전체 텍스트를 Dictionary 기반 번역 로직으로 전면 교체함.
 - MVP(초기 구동 목표치) 달성 완료에 따라 관련 문서를 갱신하고 금일 1차 개발 소스 전체를 Github 저장소에 커밋 및 Push 처리.
 ## 향후 진행 과제 (Next Action Items)
 1. 추론 지연 시간(Latency) 병목 최적화

@@ -5,6 +5,7 @@ import time
 from PIL import Image
 
 from streamlit_image_coordinates import streamlit_image_coordinates
+import plotly.graph_objects as go
 
 # Import pipeline modules
 from src.seg.sam2_wrapper import SAM2BaseWrapper
@@ -164,6 +165,39 @@ if uploaded_file is not None:
                 depth_colormap_rgb = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
                 st.image(depth_colormap_rgb, use_container_width=True, caption=f"Relative Depth Output ({t_depth*1000:.1f}ms)")
 
+                
+            # ---------------------------------------------------------
+            # Interactive 3D Grid / Contour
+            # ---------------------------------------------------------
+            with st.expander("🌍 Show Interactive 3D Topographic Grid & Contour"):
+                st.markdown("Use your mouse/touch to rotate, zoom, and explore the physical surface grid.")
+                
+                # Downsample for browser performance 
+                scale_percent = 20
+                width = int(depth_map.shape[1] * scale_percent / 100)
+                height = int(depth_map.shape[0] * scale_percent / 100)
+                resized_depth = cv2.resize(depth_map, (width, height), interpolation = cv2.INTER_AREA)
+                
+                fig = go.Figure(data=[go.Surface(
+                    z=resized_depth, 
+                    colorscale='Inferno',
+                    contours = {
+                        "z": {"show": True, "size": (np.max(resized_depth)-np.min(resized_depth))/15, "color": "white"}
+                    }
+                )])
+                
+                fig.update_layout(
+                    title='3D Depth Heatmap Framework',
+                    autosize=True,
+                    height=600,
+                    margin=dict(l=0, r=0, b=0, t=30),
+                    scene=dict(
+                        xaxis=dict(showbackground=False),
+                        yaxis=dict(showbackground=False),
+                        zaxis=dict(showbackground=False)
+                    )
+                )
+                st.plotly_chart(fig, use_container_width=True)
                 
             # ---------------------------------------------------------
             # Data & Recommendation Report

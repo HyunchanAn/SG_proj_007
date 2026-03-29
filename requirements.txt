@@ -10,3 +10,4 @@ pydantic>=2.0.0
 streamlit>=1.30.0
 plotly>=5.10.0
 streamlit-image-coordinates
+git+https://github.com/facebookresearch/sam2.git

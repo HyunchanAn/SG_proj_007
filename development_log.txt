@@ -36,3 +36,4 @@
 - 메모리 한계(OOM) 극복을 위해 기존 SAM 2/Depth-V2 Large 모델 사용을 Small 모델 구조(`sam2_hiera_small`, `vits`)로 다운사이징하여 `app.py` 런타임에 반영
 - 윈도우 파워쉘 기반 로컬 다운로드 에러 대응 및 클라우드 배포 시 자가(Self) 가중치 다운로드를 위해 `app.py` 내부에 `urllib` 기반 Web 다운로더 로직 구현 (`load_models` 블럭)
 - Streamlit Cloud의 OpenCV 환경 구축을 위한 리눅스 시스템 패키지 매니저 파일(`packages.txt`) 생성 및 `libgl1`, `libglib2.0-0` 매핑
+- **[UI 개선]** 3D 입체 지형 뷰(Plotly Surface)의 Z(세로)축이 과도하게 늘어나는 렌더링 스케일 왜곡 버그 수정 (`aspectratio` 수동 지정)

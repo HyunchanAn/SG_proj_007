@@ -267,7 +267,9 @@ if uploaded_file is not None:
                     scene=dict(
                         xaxis=dict(showbackground=False),
                         yaxis=dict(showbackground=False),
-                        zaxis=dict(showbackground=False)
+                        zaxis=dict(showbackground=False),
+                        aspectmode='manual',
+                        aspectratio=dict(x=1, y=1, z=0.3)
                     )
                 )
                 st.plotly_chart(fig, use_container_width=True)

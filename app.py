@@ -12,6 +12,7 @@ from src.seg.sam2_wrapper import SAM2BaseWrapper
 from src.topo.depth_wrapper import DepthAnythingV2Wrapper
 from src.curv.curvature import CurvatureAnalyzer
 from src.match.engine import KnowledgeEngine
+from src.topo.multiview_fuser import MultiViewFuser
 
 # Page config
 st.set_page_config(page_title="SG-TERRA AI", page_icon="🔍", layout="wide")
@@ -108,7 +109,11 @@ text = {
     "rec_success": {"en": "Analysis successful. Displaying top optimal products tailored to withstand the evaluated physical stress.", "ko": "분석이 정상 종료되었습니다. 측정된 표면의 구조적 응력을 견딜 수 있도록 설계된 최적의 제품군 리스트입니다."},
     "rec_top": {"en": "**🥇 Top Recommendation: {name} ({id})**  \nSurpasses minimum required curvature ({r}mm capacity) with a high correlation score for peel strength and elongation.", "ko": "**🥇 권장 최적 제품 (Top 1): {name} ({id})**  \n요구되는 최소 곡률 반경({r}mm 이상)을 충분히 커버하며 박리력과 연신율간의 상관관계 스코어가 모델 내에서 가장 뛰어납니다."},
     "rec_all": {"en": "### All Feasible Candidates", "ko": "### 추천 가능 대체 후보 테이블"},
-    "missing_image": {"en": "Please upload an image using the sidebar to begin.", "ko": "왼쪽 사이드바에서 테스트 용도로 사용할 판넬 혹은 피착제의 사진을 먼저 업로드하여 주십시오."}
+    "missing_image": {"en": "Please upload an image using the sidebar to begin.", "ko": "왼쪽 사이드바에서 테스트 용도로 사용할 판넬 혹은 피착제의 사진을 먼저 업로드하여 주십시오."},
+    "mv_title": {"en": "Multi-View Calibration Mode Enabled", "ko": "초정밀 Multi-View 캘리브레이션 모드 활성화"},
+    "mv_run": {"en": "Run Multi-View 3D Fusion 🚀", "ko": "다중 구조 3D 정합 퓨전 실행 🚀"},
+    "mv_status": {"en": "Fusing Point Clouds strategically...", "ko": "ICP 병합 및 3차원 스케일 보정 수행 중..."},
+    "mv_done": {"en": "Multi-View Fusion Complete!", "ko": "초정밀 Multi-View 정합 완료!"}
 }
 
 def t(key, **kwargs):
@@ -132,7 +137,7 @@ with st.spinner(t("init")):
     sam_wrapper, depth_wrapper, curv_analyzer, match_engine = load_models()
 
 st.sidebar.header(t("controls"))
-uploaded_file = st.sidebar.file_uploader(t("upload"), type=['jpg', 'jpeg', 'png'])
+uploaded_files = st.sidebar.file_uploader(t("upload"), type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
 
 # Tuning
 st.sidebar.subheader(t("params"))
@@ -144,11 +149,13 @@ roughness = st.sidebar.number_input(t("roughness"), value=1.0, step=0.1)
 # ---------------------------------------------------------
 # Main Execution Pipeline
 # ---------------------------------------------------------
-if uploaded_file is not None:
-    # Read Image
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    image_bgr = cv2.imdecode(file_bytes, 1)
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+if uploaded_files:
+    if len(uploaded_files) == 1:
+        uploaded_file = uploaded_files[0]
+        # Read Image
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        image_bgr = cv2.imdecode(file_bytes, 1)
+        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     
     st.subheader(t("step1_title"))
     
@@ -281,5 +288,61 @@ if uploaded_file is not None:
                 # Show all options in a table
                 st.write(t("rec_all"))
                 st.dataframe(recommendations, use_container_width=True)
+
+    else:
+        # Multi-View Workflow
+        st.subheader(t("mv_title"))
+        st.write(f"{len(uploaded_files)}개의 이미지가 업로드되었습니다. 단안 뎁스를 넘어선 초정밀 ICP 정합 퓨전을 준비합니다.")
+        
+        if st.button(t("mv_run"), type="primary"):
+            rgb_list = []
+            depth_list = []
+            
+            with st.status(t("mv_status"), expanded=True) as status:
+                for idx, uf in enumerate(uploaded_files):
+                    st.write(f"[{idx+1}/{len(uploaded_files)}] 이미지 기초 특징점 및 뎁스 추출 중...")
+                    
+                    file_bytes = np.asarray(bytearray(uf.read()), dtype=np.uint8)
+                    image_rgb = cv2.cvtColor(cv2.imdecode(file_bytes, 1), cv2.COLOR_BGR2RGB)
+                    
+                    # 자동 마스킹 (중앙 중심)
+                    h, w = image_rgb.shape[:2]
+                    mask = sam_wrapper.segment_target(image_rgb, prompt_points=np.array([[w//2, h//2]]), prompt_labels=np.array([1]))
+                    depth = depth_wrapper.estimate_depth(image_rgb, mask=mask)
+                    
+                    rgb_list.append(image_rgb)
+                    depth_list.append(depth)
+                    
+                st.write("초정밀 다중 뷰 ICP 병합 수행 (Open3D)...")
+                fuser = MultiViewFuser(voxel_size=0.08)
+                t0 = time.time()
+                final_pcd = fuser.fuse_views(rgb_list, depth_list)
+                t_fuser = time.time() - t0
+                
+                status.update(label=t("mv_done") + f" ({t_fuser:.2f}s)", state="complete", expanded=False)
+                
+            st.success(f"Multi-View 정합 성공! 총 포인트 개수: {len(final_pcd.points)}개")
+            
+            # 3D 스캐터 시각화
+            with st.expander("🌍 Multi-View 3D Point Cloud 보기", expanded=True):
+                pts = np.asarray(final_pcd.points)
+                colors = np.asarray(final_pcd.colors)
+                # 다운샘플링 렌더링 최적화
+                if len(pts) > 50000:
+                    idx = np.random.choice(len(pts), 50000, replace=False)
+                    pts = pts[idx]
+                    colors = colors[idx]
+                    
+                fig = go.Figure(data=[go.Scatter3d(
+                    x=pts[:, 0], y=pts[:, 1], z=pts[:, 2],
+                    mode='markers',
+                    marker=dict(size=2, color=colors)
+                )])
+                fig.update_layout(
+                    autosize=True, height=600, margin=dict(l=0, r=0, b=0, t=30),
+                    scene=dict(aspectmode='data')
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
 else:
     st.info(t("missing_image"))

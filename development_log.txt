@@ -30,3 +30,8 @@
 3. 데이터 연동 및 모델 Fine-Tuning
    - 연구소 점착제 물성 실데이터(CSV) 연동 적용
    - 금속 강판 특유의 반사광(Specular Reflection) 노이즈 저감을 위한 Depth 예측용 합성 데이터셋 구축 가능성 검토
+
+## 2026-03-29 (Phase 3: Multi-View Calibration)
+- 단안 렌즈의 상대적 깊이 추출(Depth-Anything) 한계(가변적인 비율 왜곡 및 캘리브레이션 모호성)를 극복하기 위해, **다중 각도 이미지 정합 및 보정 기능** 실험 착수 (`feature/multi-view-calibration` 브랜치).
+- [New] `src/topo/multiview_fuser.py` 생성: `opencv-contrib`를 통한 SIFT 특징점 매칭 기반 로직과 `open3d`를 결합하여 N개의 상대 포인트 클라우드를 하나의 일관된 거시적 구조(3D Mesh)로 통합하는 ICP(Iterative Closest Point) 모듈 구현.
+- [Modify] `app.py`: 기존 단일 이미지 업로드를 뚫어버리고 다중 업로드를 지원하도록 개편. 복수 이미지가 들어올 경우 백그라운드에서 순차적으로 분할 타겟팅(SAM2) -> 뎁스 예측 -> 점군 변환 -> Open3D 전역 정합을 시도하며, Plotly Scatter3d를 통해 정교해진 퓨전결과물 표출.

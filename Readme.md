@@ -25,7 +25,8 @@ Project Alias: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 일반 2D 사진으로부터 고정밀 3D 데이터를 추출하기 위해 최신 Foundation Model을 앙상블함.
 - Target Segmentation (SAM 2): 촬영된 이미지 내에서 분석 제외 대상(배경, 노이즈)을 마스킹하고, 순수 강판 표면 영역(ROI)만을 실시간 분리.
 - Depth Estimation (Depth-Anything-V2): 단일 시점 이미지에서 픽셀 단위의 상대적 깊이(Relative Depth)를 추정. 보유 중인 RTX 5080(16GB VRAM) 환경을 활용하여 'Large Model' 기반의 고해상도 Depth Map 생성.
-- Topological Metric Extraction: 추출된 3D 포인트 클라우드에서 Gaussian Curvature($K$) 및 Surface Area Expansion Ratio를 계산하여 가공 시 응력 집중 구간을 예측.
+- **Enhanced Multi-View Fusion**: N개의 시점 이미지를 특징점(SIFT) 및 사용자가 지정한 수동 앵커(Manual Anchor)를 통해 하나로 정합하여 단안 시점의 왜곡을 최소화한 통합 3D 포인트 클라우드 생성.
+- **Topological Metric Extraction**: 추출된 3D 포인트 클라우드에서 Gaussian Curvature($K$) 및 Surface Area Expansion Ratio를 계산하여 가공 시 응력 집중 구간을 예측. 노이즈 스파이크 제거를 위한 가우시안 평활화(Gaussian Smoothing) 포스트 프로세싱 적용.
 
 ### B. Phase 2: Knowledge-Based Recommendation Engine
 추출된 물리적 지표를 연구소의 점착제 물성 DB와 대조.

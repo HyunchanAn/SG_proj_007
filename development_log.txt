@@ -35,3 +35,11 @@
 - 단안 렌즈의 상대적 깊이 추출(Depth-Anything) 한계(가변적인 비율 왜곡 및 캘리브레이션 모호성)를 극복하기 위해, **다중 각도 이미지 정합 및 보정 기능** 실험 착수 (`feature/multi-view-calibration` 브랜치).
 - [New] `src/topo/multiview_fuser.py` 생성: `opencv-contrib`를 통한 SIFT 특징점 매칭 기반 로직과 `open3d`를 결합하여 N개의 상대 포인트 클라우드를 하나의 일관된 거시적 구조(3D Mesh)로 통합하는 ICP(Iterative Closest Point) 모듈 구현.
 - [Modify] `app.py`: 기존 단일 이미지 업로드를 뚫어버리고 다중 업로드를 지원하도록 개편. 복수 이미지가 들어올 경우 백그라운드에서 순차적으로 분할 타겟팅(SAM2) -> 뎁스 예측 -> 점군 변환 -> Open3D 전역 정합을 시도하며, Plotly Scatter3d를 통해 정교해진 퓨전결과물 표출.
+
+## 2026-04-09 (Phase 4: High-Fidelity 3D Reconstruction Optimization)
+- **고해상도 이미지 처리 최적화**: 8K급 이미지 처리 시 발생하는 메모리 부족 및 Streamlit MessageSizeError를 해결하기 위해 하이브리드 리사이징(분석용 2048px, UI용 1024px) 파이프라인 구축.
+- **실시간 SAM 2 마스킹**: `streamlit-image-coordinates`와 SAM 2를 결합하여, 사용자가 여러 장의 사진에서 각각 피사체를 클릭하여 분할할 수 있는 다중 ROI 관리 로직 구현.
+- **기하학적 왜곡 보정 시스템**: 스마트폰 카메라 렌즈(FOV) 특성으로 발생하는 찌그러짐을 해결하기 위해 'Aspect Correction(W/H Ratio)' 및 'FOV Scale' 수동 보정 제어판 추가.
+- **수동 앵커 포인트 정합 (Manual Alignment)**: 특징점이 부족한 물체(하얀 플라스틱 등)의 중첩 오류(Ghosting)를 해결하기 위해, 사용자가 찍은 점을 3D 공간의 실시간 고정핀(Anchor)으로 사용하는 수동 대응점 정합 알고리즘 구현.
+- **표면 평활화 및 노이즈 필터링**: `Depth-Anything` 특유의 고주파 스파이크 노이즈를 제거하기 위해 SOR(통계적 이상치 제거) 및 ROR(반경 기반 제거) 필터를 강화하고, 가우시안 평활화(Gaussian Smoothing) 포스트 프로세싱 적용.
+- **한계점 기록**: 다중 뷰 정합의 안정성이 아직 완벽하지 않으며(Ghosting 잔존), 사용자가 재현 결과의 직관성에 대해 추가 개선을 요구함.

@@ -76,11 +76,13 @@ class MultiViewFuser:
         return pcd, a_3d
 
     def extract_fpfh(self, pcd):
-        """FPFH 추출"""
-        radius_normal = self.voxel_size * 2
+        """기하 구조 특징점(FPFH) 추출 최적화 (저질감 대응)"""
+        # 법선 추정 범위 확장 (부드러운 평면에서의 일관성 확보)
+        radius_normal = self.voxel_size * 5
         pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
         
-        radius_feature = self.voxel_size * 5
+        # FPFH 특징점 추출 범위 확장
+        radius_feature = self.voxel_size * 10
         fpfh = o3d.pipelines.registration.compute_fpfh_feature(
             pcd,
             o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100)
@@ -88,34 +90,35 @@ class MultiViewFuser:
         return fpfh
 
     def register_icp(self, source, target, source_anchor=None, target_anchor=None):
-        """전역 정합 후 ICP 수행 (Anchor Point 기반 초기화 추가)"""
+        """FPFH 기반 전역 정합 후 정밀 ICP 수행 (Global-to-Local 전략)"""
         
         # 1. 초기 추정치 계산
         initial_trans = np.eye(4)
+        distance_threshold = self.voxel_size * 1.5
+        
         if source_anchor is not None and target_anchor is not None:
-            # Anchor 간의 차이를 이용해 초기 이동값 설정
+            # Anchor 간의 차이로 일차 정밀 정렬
             diff = target_anchor - source_anchor
             initial_trans[:3, 3] = diff
-            print(f"[Registration] Manual Anchor Offset Applied: {diff}")
         else:
-            # 수동 앵커가 없으면 기존 기법(RANSAC) 사용
+            # 수동 앵커가 없으면 FPFH 기반 전역 정합 (Shape-based Matching)
             source_fpfh = self.extract_fpfh(source)
             target_fpfh = self.extract_fpfh(target)
-            distance_threshold = self.voxel_size * 2.0
+            
+            # RANSAC 전역 정합
             result_ransac = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
                 source, target, source_fpfh, target_fpfh, True,
-                distance_threshold,
+                distance_threshold * 2,
                 o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
                 3, [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
-                    o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)],
+                    o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold * 2)],
                 o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999)
             )
             initial_trans = result_ransac.transformation
 
-        # 2. 로컬 ICP 정밀 보정 (Point-to-Plane)
-        distance_threshold = self.voxel_size * 2.0
+        # 2. 로컬 ICP 정밀 보정 (Generalized ICP 스타일)
         result_icp = o3d.pipelines.registration.registration_icp(
-            source, target, distance_threshold / 2, initial_trans,
+            source, target, distance_threshold, initial_trans,
             o3d.pipelines.registration.TransformationEstimationPointToPlane()
         )
         return result_icp.transformation
@@ -160,7 +163,9 @@ class MultiViewFuser:
             accumulated_pcd = accumulated_pcd.voxel_down_sample(self.voxel_size)
             
             # 병합 후 노이즈 재필터링 (정합 오차로 인한 가시 현상 방지)
-            accumulated_pcd, _ = accumulated_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=1.5)
+            accumulated_pcd, _ = accumulated_pcd.remove_statistical_outlier(nb_neighbors=40, std_ratio=1.0)
+            # 포인트 클라우드는 Laplacian Smoothing을 직접 지원하지 않으므로 voxel_down_sample로 밀도 정규화
+            accumulated_pcd = accumulated_pcd.voxel_down_sample(self.voxel_size)
             
             print(f"[MultiView] View {i+1} fused. Accumulated points: {len(accumulated_pcd.points)}")
             

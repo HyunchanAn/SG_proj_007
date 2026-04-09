@@ -3,12 +3,14 @@ import cv2
 from scipy.ndimage import gaussian_filter
 
 class CurvatureAnalyzer:
-    def __init__(self, smoothing_sigma: float = 2.0):
+    def __init__(self, smoothing_sigma: float = 2.0, smoothing_type: str = 'bilateral'):
         """
         Depth Map을 기반으로 3D 표면의 곡률(Gaussian/Mean Curvature)을 분석하는 모듈.
-        :param smoothing_sigma: 노이즈 저감을 위한 Gaussian Smoothing의 강도
+        :param smoothing_sigma: 노이즈 저감을 위한 Smoothing 강도 (Gaussian sigma 또는 Bilateral sigmaSpace)
+        :param smoothing_type: 'gaussian' 또는 'bilateral'
         """
         self.sigma = smoothing_sigma
+        self.type = smoothing_type
 
     def calculate_gaussian_curvature(self, depth_map: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
         """
@@ -20,8 +22,14 @@ class CurvatureAnalyzer:
         :param mask: 강판 타겟 영역 마스크 (배경 배제)
         :return: 각 픽셀별 Gaussian Curvature 배열
         """
-        # 노이즈를 줄여 미분 오차 방지
-        Z = gaussian_filter(depth_map.astype(np.float32), sigma=self.sigma)
+        # 노이즈를 줄여 미분 오차 방지 (Bilateral Filter로 엣지 보존)
+        depth_f32 = depth_map.astype(np.float32)
+        if self.type == 'bilateral':
+            # Bilateral Filter: d=9, sigmaColor=75, sigmaSpace=75 (OpenCV 기본값 부근)
+            # 여기서는 sigmaSpace에 self.sigma 연동
+            Z = cv2.bilateralFilter(depth_f32, d=9, sigmaColor=0.1, sigmaSpace=self.sigma)
+        else:
+            Z = gaussian_filter(depth_f32, sigma=self.sigma)
         
         # 1차 편미분 (x, y 방향의 Gradient)
         Zy, Zx = np.gradient(Z)
@@ -48,7 +56,11 @@ class CurvatureAnalyzer:
         Depth Map 식으로부터 Mean Curvature(H)를 계산.
         H = ((1 + Zx^2)*Zyy - 2*Zx*Zy*Zxy + (1 + Zy^2)*Zxx) / (2*(1 + Zx^2 + Zy^2)^(3/2))
         """
-        Z = gaussian_filter(depth_map.astype(np.float32), sigma=self.sigma)
+        depth_f32 = depth_map.astype(np.float32)
+        if self.type == 'bilateral':
+            Z = cv2.bilateralFilter(depth_f32, d=9, sigmaColor=0.1, sigmaSpace=self.sigma)
+        else:
+            Z = gaussian_filter(depth_f32, sigma=self.sigma)
         
         Zy, Zx = np.gradient(Z)
         Zyy, Zyx = np.gradient(Zy)

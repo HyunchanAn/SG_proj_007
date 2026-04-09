@@ -83,7 +83,7 @@ def load_models():
     depth_wrapper = DepthAnythingV2Wrapper(checkpoint_path="models/depth_anything_v2/depth_anything_v2_vitl.pth")
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
     match_engine = KnowledgeEngine(db_path="data/database/film_properties.csv")
-    fuser = MultiViewFuser(voxel_size=0.08)
+    fuser = MultiViewFuser(voxel_size=0.1)
     pcd_analyzer = PCDCurvatureAnalyzer(knn=40)
     calibrator = ScaleCalibrator()
     
@@ -144,7 +144,12 @@ roughness = st.sidebar.number_input(t("roughness"), value=1.0, step=0.1)
 z_magnify = st.sidebar.slider("Depth Magnification (Z-Scale)", 0.1, 20.0, 1.0, 0.1)
 aspect_corr = st.sidebar.slider("Aspect Correction (W/H)", 0.5, 2.0, 1.0, 0.05)
 fov_corr = st.sidebar.slider("Camera FOV Scale", 0.5, 2.0, 1.0, 0.1)
-surface_smooth = st.sidebar.slider("Surface Smoothing (Gaussian)", 0.0, 10.0, 2.0, 0.5)
+smooth_type = st.sidebar.selectbox("Smoothing Type", ["bilateral", "gaussian"])
+surface_smooth = st.sidebar.slider("Surface Smoothing (Post-process)", 0.0, 10.0, 2.0, 0.5)
+
+# Update analyzer states
+ca.sigma = ca.sigma
+ca.type = smooth_type
 
 # Logic for resizing UI and Processing images to prevent crashes/lag
 MAX_UI_DIM = 1024

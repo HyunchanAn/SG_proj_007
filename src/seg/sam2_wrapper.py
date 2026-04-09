@@ -2,10 +2,11 @@ import torch
 import numpy as np
 import cv2
 import time
+import os
 
 class SAM2BaseWrapper:
     def __init__(self, model_cfg: str = "sam2_hiera_l.yaml", 
-                 checkpoint_path: str = "../../models/sam2/sam2_hiera_large.pt", 
+                 checkpoint_path: str = "models/sam2/sam2_hiera_large.pt", 
                  device: str = None):
         """
         SAM 2 기반 Target Segmentation 파이프라인 구성.
@@ -23,7 +24,7 @@ class SAM2BaseWrapper:
         else:
             self.device = torch.device(device)
             
-        print(f"🔧 Initializing SAM 2 Wrapper on: {self.device}")
+        print(f"Initializing SAM 2 Wrapper on: {self.device}")
         self.model_cfg = model_cfg
         self.checkpoint_path = checkpoint_path
         
@@ -42,11 +43,15 @@ class SAM2BaseWrapper:
         """
         모델 파라미터를 메모리에 적재 (추후 지연 로딩을 위해 분리)
         """
+        # Find config path dynamically
         from sam2.build_sam import build_sam2
         from sam2.sam2_image_predictor import SAM2ImagePredictor
+        import sam2
+        sam2_dir = os.path.dirname(sam2.__file__)
+        config_path = os.path.join(sam2_dir, "configs", "sam2", self.model_cfg)
         
-        print("Loading SAM 2 checkpoints...")
-        self.model = build_sam2(self.model_cfg, self.checkpoint_path, device=self.device)
+        print(f"Loading SAM 2 checkpoints with config: {config_path}")
+        self.model = build_sam2(config_path, self.checkpoint_path, device=self.device)
         self.predictor = SAM2ImagePredictor(self.model)
         print("SAM 2 loaded successfully.")
 

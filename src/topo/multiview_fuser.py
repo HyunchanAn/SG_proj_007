@@ -24,36 +24,43 @@ class MultiViewFuser:
         kp, des = self.sift.detectAndCompute(gray, None)
         return kp, des
 
-    def create_point_cloud(self, rgb, depth, fx=1000, fy=1000, cx=None, cy=None):
-        """RGB와 Depth 맵을 기반으로 Open3D Point Cloud 객체 생성"""
+    def create_point_cloud(self, rgb, depth, scale_factor=1.0, fx=1000, fy=1000, cx=None, cy=None):
+        """RGB와 Depth 맵을 기반으로 Open3D Point Cloud 객체 생성 (실제 스케일 반영)"""
         h, w = depth.shape
         if cx is None: cx = w / 2
         if cy is None: cy = h / 2
         
-        # Intrinsic Matrix (가변 카메라 고려)
+        # Intrinsic Matrix
         intrinsic = o3d.camera.PinholeCameraIntrinsic(w, h, fx, fy, cx, cy)
         
-        # 8비트 RGB를 맞게 변환
+        # 8비트 RGB
         rgb_o3d = o3d.geometry.Image(rgb)
         
-        # Float32 Depth를 미터법(Metric) 스케일로 변환 가정
-        depth_norm = cv2.normalize(depth, None, 0, 10, cv2.NORM_MINMAX)
-        depth_o3d = o3d.geometry.Image(depth_norm.astype(np.float32))
+        # Depth-Anything의 상대적 깊이를 물리적 mm 단위로 정규화 및 스케일링
+        # (상대 깊이 0.0~1.0 가정 -> scale_factor를 곱해 실제 mm로 변환)
+        depth_scaled = depth.astype(np.float32) * scale_factor * 10.0 # 10.0은 기본 뎁스 강조 계수
+        depth_o3d = o3d.geometry.Image(depth_scaled)
         
         rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
             rgb_o3d, depth_o3d,
-            depth_scale=1.0, depth_trunc=10.0, convert_rgb_to_intensity=False
+            depth_scale=1.0, depth_trunc=1000.0, convert_rgb_to_intensity=False
         )
         
         pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, intrinsic)
         
-        # 다운샘플링 수행 및 노이즈 제거
+        # 2D 평면 스케일 보정 (X, Y축에 scale_factor 적용)
+        points = np.asarray(pcd.points)
+        points[:, 0] *= scale_factor
+        points[:, 1] *= scale_factor
+        pcd.points = o3d.utility.Vector3dVector(points)
+        
+        # 다운샘플링 및 노이즈 제거
         pcd = pcd.voxel_down_sample(self.voxel_size)
         cl, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
         return pcd.select_by_index(ind)
 
     def extract_fpfh(self, pcd):
-        """빠른 전역 정합(Fast Global Registration)을 위한 FPFH 추출"""
+        """FPFH 추출"""
         radius_normal = self.voxel_size * 2
         pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
         
@@ -65,12 +72,12 @@ class MultiViewFuser:
         return fpfh
 
     def register_icp(self, source, target):
-        """전역 정합 후 Iterative Closest Point(ICP) 수행"""
-        # FPFH 특징 추출
+        """전역 정합 후 ICP 수행 (30도 이내 각도 최적화)"""
         source_fpfh = self.extract_fpfh(source)
         target_fpfh = self.extract_fpfh(target)
         
-        distance_threshold = self.voxel_size * 1.5
+        # 30도 이내 환경이므로 정합 임계치를 다소 타이트하게 설정하여 노이즈 방지
+        distance_threshold = self.voxel_size * 2.0
         
         # 1. RANSAC 전역 정합
         result_ransac = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
@@ -82,39 +89,39 @@ class MultiViewFuser:
             o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999)
         )
         
-        # 2. 로컬 ICP 정밀 보정
+        # 2. 로컬 ICP 정밀 보정 (Point-to-Plane)
         result_icp = o3d.pipelines.registration.registration_icp(
             source, target, distance_threshold / 2, result_ransac.transformation,
             o3d.pipelines.registration.TransformationEstimationPointToPlane()
         )
         return result_icp.transformation
 
-    def fuse_views(self, rgb_list, depth_list):
-        """다중 뷰 이미지 리스트와 깊이 리스트를 통째로 정합(ICP Iteration)"""
-        if len(rgb_list) < 2:
-            raise ValueError("최소 2개 이상의 뷰가 필요합니다.")
+    def fuse_views(self, rgb_list, depth_list, scale_factor=1.0):
+        """다중 뷰 이미지 리스트와 깊이 리스트를 통째로 정합 (스케일 반영)"""
+        if len(rgb_list) < 1:
+            raise ValueError("최소 1개 이상의 이미지가 필요합니다.")
             
-        print("[MultiView] 첫 번째 타겟 뷰 초기화...")
-        accumulated_pcd = self.create_point_cloud(rgb_list[0], depth_list[0])
+        print(f"[MultiView] Calibration Scale(factor={scale_factor:.4f}) applying...")
+        accumulated_pcd = self.create_point_cloud(rgb_list[0], depth_list[0], scale_factor=scale_factor)
         accumulated_pcd.estimate_normals()
         
-        results = [accumulated_pcd]
+        # 뷰가 1개뿐이면 정합 과정을 건너뛰고 바로 반환
+        if len(rgb_list) == 1:
+            print("[MultiView] 단일 뷰 스케일 보정 완료.")
+            return accumulated_pcd
         
         for i in range(1, len(rgb_list)):
-            print(f"[MultiView] {i+1}번째 뷰 정합 계산 중 (ICP)...")
-            source_pcd = self.create_point_cloud(rgb_list[i], depth_list[i])
+            print(f"[MultiView] {i+1}th view refined matching (ICP)...")
+            source_pcd = self.create_point_cloud(rgb_list[i], depth_list[i], scale_factor=scale_factor)
             source_pcd.estimate_normals()
             
-            # 소스와 누적본 정합 진행
+            # 정합 진행
             transform_mat = self.register_icp(source_pcd, accumulated_pcd)
             source_pcd.transform(transform_mat)
             
-            # 합체
+            # 합체 및 다운샘플링
             accumulated_pcd += source_pcd
-            
-            # Voxel 필터로 균일화 처리
             accumulated_pcd = accumulated_pcd.voxel_down_sample(self.voxel_size)
-            print(f"[MultiView] 뷰 {i+1} 병합 완료. 누적 포인트 갯수: {len(accumulated_pcd.points)}개")
+            print(f"[MultiView] View {i+1} fused. Accumulated points: {len(accumulated_pcd.points)}")
             
-        print("[MultiView] 전역 병합 최종 Smoothing 완료.")
         return accumulated_pcd

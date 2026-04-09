@@ -5,7 +5,7 @@ import time
 
 class DepthAnythingV2Wrapper:
     def __init__(self, encoder: str = 'vitl', 
-                 checkpoint_path: str = "../../models/depth_anything_v2/depth_anything_v2_vitl.pth", 
+                 checkpoint_path: str = "models/depth_anything_v2/depth_anything_v2_vitl.pth", 
                  device: str = None):
         """
         Depth-Anything-V2 기반 3D Topography 재구성 파이프라인.
@@ -23,7 +23,7 @@ class DepthAnythingV2Wrapper:
         else:
             self.device = torch.device(device)
             
-        print(f"📐 Initializing Depth-Anything-V2 Wrapper on: {self.device}")
+        print(f"Initializing Depth-Anything-V2 Wrapper on: {self.device}")
         self.encoder = encoder
         self.checkpoint_path = checkpoint_path
         self.model = None

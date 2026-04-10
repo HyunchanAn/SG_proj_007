@@ -144,11 +144,11 @@ roughness = st.sidebar.number_input(t("roughness"), value=1.0, step=0.1)
 z_magnify = st.sidebar.slider("Depth Magnification (Z-Scale)", 0.1, 20.0, 1.0, 0.1)
 aspect_corr = st.sidebar.slider("Aspect Correction (W/H)", 0.5, 2.0, 1.0, 0.05)
 fov_corr = st.sidebar.slider("Camera FOV Scale", 0.5, 2.0, 1.0, 0.1)
-smooth_type = st.sidebar.selectbox("Smoothing Type", ["bilateral", "gaussian"])
+smooth_type = st.sidebar.selectbox("Smoothing Type", ["bilateral", "gaussian"], index=0)
 surface_smooth = st.sidebar.slider("Surface Smoothing (Post-process)", 0.0, 10.0, 2.0, 0.5)
 
-# Update analyzer states
-ca.sigma = ca.sigma
+# Update analyzer states dynamically
+ca.sigma = surface_smooth
 ca.type = smooth_type
 
 # Logic for resizing UI and Processing images to prevent crashes/lag
@@ -332,27 +332,35 @@ if uploaded_files:
                     pt = st.session_state.roi_prompts[uf.name]
                     mask = sam.segment_target(img_rgb, prompt_points=np.array([[pt[0], pt[1]]]), prompt_labels=np.array([1]))
                     
-                    # Depth
-                    depth = dw.estimate_depth(img_rgb, mask=mask)
+                    # Depth + Phase 7 High-Precision Filtering
+                    raw_depth = dw.estimate_depth(img_rgb, mask=mask)
+                    depth = ca.smooth_depth(raw_depth) # Apply Bilateral/Gaussian smoothing immediately
                     
                     rgb_list.append(img_rgb)
                     depth_list.append(depth)
                     progress_bar.progress((i + 1) / (num_files + 1))
 
                 # Fusion & Precision Analysis
-                st.write(f"▶️ {t('step_pcd')}")
+                with st.spinner(t("step_pcd")):
+                    # Extract anchors for all images
+                    anchor_coords = [st.session_state.roi_prompts.get(uf.name) for uf in uploaded_files]
+                    
+                    # fuser.fuse_views now returns fitness score
+                    final_pcd, fitness = fuser.fuse_views(
+                        rgb_list, depth_list, 
+                        scale_factor=calib.scale_factor, 
+                        z_scale=z_magnify,
+                        fov_scale=fov_corr,
+                        anchor_coords=anchor_coords
+                    )
                 
-                # Extract anchors for all images
-                anchor_coords = [st.session_state.roi_prompts.get(uf.name) for uf in uploaded_files]
-                
-                # Pass z_magnify, fov_corr, and anchor_coords to fuser
-                final_pcd = fuser.fuse_views(
-                    rgb_list, depth_list, 
-                    scale_factor=calib.scale_factor, 
-                    z_scale=z_magnify,
-                    fov_scale=fov_corr,
-                    anchor_coords=anchor_coords
-                )
+                # Fitness Guard UI Feedback
+                if fitness < 0.6:
+                    st.error(f"⚠️ Registration Confidence Low ({fitness:.2f}). Please re-check Anchor Points for better alignment.")
+                elif fitness < 0.85:
+                    st.warning(f"💡 Registration Fitness: {fitness:.2f}. Minor distortions might exist.")
+                else:
+                    st.success(f"✅ High-Fidelity Registration Success (Fitness: {fitness:.2f})")
                 
                 curvatures = pa.calculate_curvature(final_pcd)
                 estimated_r = pa.estimate_min_radius(curvatures)
@@ -386,11 +394,6 @@ if uploaded_files:
             # Apply corrections to the derived axes for visual squaring
             x_plot_coords = x_coords * aspect_corr
             y_plot_coords = y_coords
-            
-            # Apply Gaussian Smoothing to remove high-frequency noise spritzes
-            if surface_smooth > 0:
-                with st.spinner("✨ Smoothing Surface..."):
-                    z_fused = gaussian_filter(z_fused, sigma=surface_smooth)
             
             # Use magnification
             z_fused = z_fused * z_magnify

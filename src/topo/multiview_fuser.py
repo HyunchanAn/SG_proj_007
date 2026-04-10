@@ -24,6 +24,53 @@ class MultiViewFuser:
         kp, des = self.sift.detectAndCompute(gray, None)
         return kp, des
 
+    def calculate_sharpness(self, image):
+        """라플라시안 분산을 이용한 이미지 선명도 측정"""
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        return cv2.Laplacian(gray, cv2.CV_64F).var()
+
+    def calculate_entropy(self, image):
+        """이미지의 정보량(Entropy) 측정"""
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+        hist /= hist.sum()
+        entropy = -np.sum(hist * np.log2(hist + 1e-7))
+        return entropy
+
+    def select_reference_view(self, images):
+        """선명도(0.7)와 정보량(0.3) 가중합을 통한 최적의 레퍼런스 뷰 선정"""
+        scores = []
+        for img in images:
+            sharp = self.calculate_sharpness(img)
+            ent = self.calculate_entropy(img)
+            # 정규화 (배치 내 상대값)
+            scores.append((sharp, ent))
+        
+        sharp_vals = np.array([s[0] for s in scores])
+        ent_vals = np.array([s[1] for s in scores])
+        
+        # Min-Max Normalization
+        s_norm = (sharp_vals - sharp_vals.min()) / (sharp_vals.max() - sharp_vals.min() + 1e-7)
+        e_norm = (ent_vals - ent_vals.min()) / (ent_vals.max() - ent_vals.min() + 1e-7)
+        
+        final_scores = s_norm * 0.7 + e_norm * 0.3
+        return np.argmax(final_scores)
+
+    def match_histograms(self, source, reference):
+        """상대적 뎁스 스케일 통일을 위한 히스토그램 매칭 (Histogram Matching)"""
+        # 0.0 ~ 1.0 범위를 가정하고 처리 (또는 uint8 변환 후 처리)
+        s_flat = source.flatten()
+        r_flat = reference.flatten()
+        
+        s_values, bin_idx, s_counts = np.unique(s_flat, return_inverse=True, return_counts=True)
+        r_values, r_counts = np.unique(r_flat, return_counts=True)
+        
+        s_quantiles = np.cumsum(s_counts).astype(np.float64) / s_flat.size
+        r_quantiles = np.cumsum(r_counts).astype(np.float64) / r_flat.size
+        
+        interp_values = np.interp(s_quantiles, r_quantiles, r_values)
+        return interp_values[bin_idx].reshape(source.shape)
+
     def create_point_cloud(self, rgb, depth, scale_factor=1.0, z_scale=1.0, fov_scale=1.0, fx=1200, fy=1200, cx=None, cy=None, anchor_pt=None):
         """RGB와 Depth 맵을 기반으로 Open3D Point Cloud 객체 생성 (실제 스케일 반영)"""
         h, w = depth.shape
@@ -121,52 +168,81 @@ class MultiViewFuser:
             source, target, distance_threshold, initial_trans,
             o3d.pipelines.registration.TransformationEstimationPointToPlane()
         )
-        return result_icp.transformation
+        return result_icp.transformation, result_icp.fitness
 
     def fuse_views(self, rgb_list, depth_list, scale_factor=1.0, z_scale=1.0, fov_scale=1.0, anchor_coords=None):
-        """다중 뷰 이미지 리스트와 깊이 리스트를 통째로 정합 (스케일 반영 및 수동 앵커 지원)"""
+        """지능형 레퍼런스 선정 및 히스토그램 매칭 기반 다중 뷰 정합"""
         if len(rgb_list) < 1:
             raise ValueError("최소 1개 이상의 이미지가 필요합니다.")
             
-        print(f"[MultiView] Calibration Scale(factor={scale_factor:.4f}) applying...")
+        # 1. 최적의 레퍼런스 뷰 자동 선정
+        ref_idx = self.select_reference_view(rgb_list)
+        print(f"[MultiView] Best Reference Selected: Index {ref_idx}")
         
-        # Reference Anchor
-        ref_anchor_uv = anchor_coords[0] if anchor_coords else None
+        # 2. 히스토그램 매칭을 통한 전체 뷰의 뎁스 스케일 동기화
+        synced_depths = []
+        ref_depth = depth_list[ref_idx]
+        for i, d in enumerate(depth_list):
+            if i == ref_idx:
+                synced_depths.append(d)
+            else:
+                synced_depths.append(self.match_histograms(d, ref_depth))
+        
+        # 3. 정합 베이스 생성 (선정된 레퍼런스 뷰 기준)
+        ref_anchor_uv = anchor_coords[ref_idx] if anchor_coords else None
         accumulated_pcd, ref_anchor_3d = self.create_point_cloud(
-            rgb_list[0], depth_list[0], 
+            rgb_list[ref_idx], synced_depths[ref_idx], 
             scale_factor=scale_factor, z_scale=z_scale, fov_scale=fov_scale,
             anchor_pt=ref_anchor_uv
         )
         accumulated_pcd.estimate_normals()
         
-        # 뷰가 1개뿐이면 정합 과정을 건너뛰고 바로 반환
         if len(rgb_list) == 1:
-            print("[MultiView] 단일 뷰 스케일 보정 완료.")
-            return accumulated_pcd
+            return accumulated_pcd, 1.0
         
-        for i in range(1, len(rgb_list)):
-            print(f"[MultiView] {i+1}th view refined matching (ICP with Anchor)...")
+        total_fitness = 1.0
+        for i in range(len(rgb_list)):
+            if i == ref_idx: continue
+            
+            print(f"[MultiView] Aligning view {i} to reference...")
             cur_anchor_uv = anchor_coords[i] if anchor_coords else None
             source_pcd, cur_anchor_3d = self.create_point_cloud(
-                rgb_list[i], depth_list[i], 
+                rgb_list[i], synced_depths[i], 
                 scale_factor=scale_factor, z_scale=z_scale, fov_scale=fov_scale,
                 anchor_pt=cur_anchor_uv
             )
             source_pcd.estimate_normals()
             
-            # 정합 진행 (앵커 3D 좌표 전달)
-            transform_mat = self.register_icp(source_pcd, accumulated_pcd, source_anchor=cur_anchor_3d, target_anchor=ref_anchor_3d)
+            transform_mat, fitness = self.register_icp(source_pcd, accumulated_pcd, source_anchor=cur_anchor_3d, target_anchor=ref_anchor_3d)
             source_pcd.transform(transform_mat)
+            total_fitness = min(total_fitness, fitness)
             
-            # 합체 및 다운샘플링
             accumulated_pcd += source_pcd
             accumulated_pcd = accumulated_pcd.voxel_down_sample(self.voxel_size)
             
-            # 병합 후 노이즈 재필터링 (정합 오차로 인한 가시 현상 방지)
-            accumulated_pcd, _ = accumulated_pcd.remove_statistical_outlier(nb_neighbors=40, std_ratio=1.0)
-            # 포인트 클라우드는 Laplacian Smoothing을 직접 지원하지 않으므로 voxel_down_sample로 밀도 정규화
-            accumulated_pcd = accumulated_pcd.voxel_down_sample(self.voxel_size)
-            
-            print(f"[MultiView] View {i+1} fused. Accumulated points: {len(accumulated_pcd.points)}")
-            
-        return accumulated_pcd
+        # 4. 포아송 재구성을 통한 고품질 표면 평활화 (Phase 8 최적화)
+        # 전문가 피드백: 연산력을 활용하여 해상도(depth)를 9로 복구 (고해상도 지형 정보 유지)
+        print("[MultiView] Performing Poisson Surface Reconstruction (Depth=9)...")
+        accumulated_pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+        
+        # 포아송 재구성 수행 (지능형 트리밍 수반)
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(accumulated_pcd, depth=9)
+        
+        # 전문가 피드백: 밀도(Density) 기반 적응형 트리밍 알고리즘
+        # 단순히 하위 %를 자르는 것이 아니라, 평균 밀도와의 거리를 고려하여 고립된 평탄면 유실 방지
+        densities = np.asanyarray(densities)
+        density_mean = np.mean(densities)
+        density_std = np.std(densities)
+        # 평균 대비 현저히 낮은 밀도(예: mean - 1.5*std) 영역만 선택적 제거
+        trim_threshold = max(density_mean - 1.5 * density_std, np.quantile(densities, 0.05))
+        vertices_to_remove = densities < trim_threshold
+        mesh.remove_vertices_by_mask(vertices_to_remove)
+        
+        # Mesh Smoothing (Taubin): 부피 수축 없는 평활화
+        # 반복 횟수를 15회로 증량하여 노이즈 제거력 강화하되, R값 왜곡 방지를 위해 lambda/mu 조절
+        mesh = mesh.filter_smooth_taubin(number_of_iterations=15, lamb=0.5, mu=-0.53)
+        
+        # 최종 포인트 클라우드로 다시 샘플링 (원본 밀도 유지 및 R값 정밀도 확보)
+        final_pcd = mesh.sample_points_uniformly(number_of_points=len(accumulated_pcd.points))
+        
+        return final_pcd, total_fitness

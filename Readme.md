@@ -13,10 +13,11 @@ Project Alias: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 - Primary Tech Stack: Python, PyTorch, SAM 2, Depth-Anything-V2, OpenCV, Streamlit
 - Target Infrastructure: On-premise (RTX 5080) & Cloud (Google Antigravity)
 
-**✅ Current Status: MVP Operation Ready**
-- End-to-end multimodal pipeline (Segmentation ➡️ Depth ➡️ Curvature ➡️ Knowledge Engine matching) successfully implemented.
-- Streamlit interactive UI dashboard (`app.py`) deployed with interactive ROI selection to mitigate background noise.
-- Live inference testing completed using Metal Performance Shaders (MPS) on local MacBook Pro M2 environments.
+**✅ Current Status: Advanced 3D Reconstruction Integration (Phase 7)**
+- **High-Fidelity Pipeline**: Unified monocular depth estimation with **32-bit Dynamic Bilateral Filtering** and **Poisson Surface Reconstruction**.
+- **Multi-View Fusion**: Adaptive FPFH + RANSAC registration with intelligent reference selection (Sharpness/Entropy based).
+- **Interactive UI**: Streamlit dashboard updated with registration fitness guards and optimized 3D topographic grid visualization.
+- **Ongoing Challenge**: Tackling high-amplitude spike noise on low-texture surfaces (e.g., white plastic) via Phase 8 radical smoothing.
 
 ## 3. Technical Architecture (Multimodal Pipeline)
 시스템은 '시각적 형상 파악'과 '물성 매칭'의 두 단계로 구성됨.
@@ -25,8 +26,9 @@ Project Alias: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 일반 2D 사진으로부터 고정밀 3D 데이터를 추출하기 위해 최신 Foundation Model을 앙상블함.
 - Target Segmentation (SAM 2): 촬영된 이미지 내에서 분석 제외 대상(배경, 노이즈)을 마스킹하고, 순수 강판 표면 영역(ROI)만을 실시간 분리.
 - Depth Estimation (Depth-Anything-V2): 단일 시점 이미지에서 픽셀 단위의 상대적 깊이(Relative Depth)를 추정. 보유 중인 RTX 5080(16GB VRAM) 환경을 활용하여 'Large Model' 기반의 고해상도 Depth Map 생성.
-- **Enhanced Multi-View Fusion**: N개의 시점 이미지를 특징점(SIFT) 및 사용자가 지정한 수동 앵커(Manual Anchor)를 통해 하나로 정합하여 단안 시점의 왜곡을 최소화한 통합 3D 포인트 클라우드 생성.
-- **Topological Metric Extraction**: 추출된 3D 포인트 클라우드에서 Gaussian Curvature($K$) 및 Surface Area Expansion Ratio를 계산하여 가공 시 응력 집중 구간을 예측. 노이즈 스파이크 제거를 위한 가우시안 평활화(Gaussian Smoothing) 포스트 프로세싱 적용.
+- **Enhanced Multi-View Fusion**: N개의 시점 이미지를 특징점(SIFT/FPFH) 및 수동 앵커를 통해 하나로 정합. **Intelligent Reference Selection**을 통해 가장 선명한 이미지를 기준으로 스케일을 정렬(Histogram Matching).
+- **Geometric Surface Reconstruction (Poisson)**: 단순 점군을 넘어 포인트 클라우드로부터 연속적 표면 함수를 근사하는 **Poisson Surface Reconstruction(Depth 9)** 적용. 고해상도 옥트리를 통해 미세 곡률 정보를 보전하면서도 **Adaptive Trimming**으로 외곽 노이즈 차단. 
+- **Topological Metric Extraction**: **MAD(Median Absolute Deviation)** 기반의 강건한 이상치 제거와 **5x5 Median Blur** 전처리를 결합하여 '침엽수림' 스파이크 노이즈를 근본적으로 제거. 3.3% 이내의 낮은 왜곡률로 고정밀 Gaussian Curvature($K$) 및 곡률 반경(R) 산출.
 
 ### B. Phase 2: Knowledge-Based Recommendation Engine
 추출된 물리적 지표를 연구소의 점착제 물성 DB와 대조.

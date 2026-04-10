@@ -12,7 +12,47 @@ class CurvatureAnalyzer:
         self.sigma = smoothing_sigma
         self.type = smoothing_type
 
-    def calculate_gaussian_curvature(self, depth_map: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
+    def smooth_depth(self, depth_map: np.ndarray) -> np.ndarray:
+        """
+        사용자 제안 및 전문가 피드백이 반영된 고정밀 뎁스 평활화 로직.
+        - float32 정밀도 유지
+        - 0~255 선형 사영을 통한 수치 안정성 확보
+        - 데이터 표준편차 기반의 동적 sigmaColor 산출
+        """
+        depth_f32 = depth_map.astype(np.float32)
+        d_min, d_max = depth_f32.min(), depth_f32.max()
+        
+        if d_max <= d_min:
+            return depth_f32
+            
+        # 0 ~ 255 스케일로 정규화
+        Z_norm = (depth_f32 - d_min) / (d_max - d_min + 1e-7) * 255.0
+        
+        # Phase 8: 침엽수림(Impulse Noise) 제거를 위한 비선형 필터링
+        # 1. Median Blur (5x5): 뾰족한 스파이크 노이즈 물리적 제거
+        Z_norm = cv2.medianBlur(Z_norm, 5)
+        
+        # 2. 통계적 이상치 클리핑 (MAD 기반) 전문가 피드백 반영
+        # 헤비 테일 노이즈에 강건한(Robust) MAD(Median Absolute Deviation) 기준 적용
+        z_median = np.median(Z_norm)
+        # MAD = median(|x - median(x)|)
+        z_mad = np.median(np.abs(Z_norm - z_median))
+        # 3.0 * (MAD * 1.4826)는 대략 3시그마와 유사하지만 이상치에 훨씬 덜 영향받음
+        trim_range = 3.0 * (z_mad * 1.4826 + 1e-7)
+        Z_norm = np.clip(Z_norm, z_median - trim_range, z_median + trim_range)
+
+        if self.type == 'bilateral':
+            # 전문가 피드백: 데이터의 표준편차를 기반으로 sigmaColor 동적 결정
+            data_std = np.std(Z_norm)
+            dynamic_sigma_color = np.clip(data_std * 0.8, 30, 100)
+            
+            Z_filtered = cv2.bilateralFilter(Z_norm, d=9, sigmaColor=dynamic_sigma_color, sigmaSpace=self.sigma)
+            Z = (Z_filtered / 255.0) * (d_max - d_min) + d_min
+        else:
+            Z_filtered = gaussian_filter(Z_norm, sigma=self.sigma)
+            Z = (Z_filtered / 255.0) * (d_max - d_min) + d_min
+            
+        return Z
         """
         Depth Map 식으로부터 Gaussian Curvature(K)를 계산.
         K = (Zxx * Zyy - Zxy^2) / (1 + Zx^2 + Zy^2)^2
@@ -22,14 +62,8 @@ class CurvatureAnalyzer:
         :param mask: 강판 타겟 영역 마스크 (배경 배제)
         :return: 각 픽셀별 Gaussian Curvature 배열
         """
-        # 노이즈를 줄여 미분 오차 방지 (Bilateral Filter로 엣지 보존)
-        depth_f32 = depth_map.astype(np.float32)
-        if self.type == 'bilateral':
-            # Bilateral Filter: d=9, sigmaColor=75, sigmaSpace=75 (OpenCV 기본값 부근)
-            # 여기서는 sigmaSpace에 self.sigma 연동
-            Z = cv2.bilateralFilter(depth_f32, d=9, sigmaColor=0.1, sigmaSpace=self.sigma)
-        else:
-            Z = gaussian_filter(depth_f32, sigma=self.sigma)
+        # 32비트 고정밀 전처리 적용
+        Z = self.smooth_depth(depth_map)
         
         # 1차 편미분 (x, y 방향의 Gradient)
         Zy, Zx = np.gradient(Z)
@@ -56,11 +90,8 @@ class CurvatureAnalyzer:
         Depth Map 식으로부터 Mean Curvature(H)를 계산.
         H = ((1 + Zx^2)*Zyy - 2*Zx*Zy*Zxy + (1 + Zy^2)*Zxx) / (2*(1 + Zx^2 + Zy^2)^(3/2))
         """
-        depth_f32 = depth_map.astype(np.float32)
-        if self.type == 'bilateral':
-            Z = cv2.bilateralFilter(depth_f32, d=9, sigmaColor=0.1, sigmaSpace=self.sigma)
-        else:
-            Z = gaussian_filter(depth_f32, sigma=self.sigma)
+        # 32비트 고정밀 전처리 적용
+        Z = self.smooth_depth(depth_map)
         
         Zy, Zx = np.gradient(Z)
         Zyy, Zyx = np.gradient(Zy)

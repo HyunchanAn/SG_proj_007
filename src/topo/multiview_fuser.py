@@ -122,6 +122,32 @@ class MultiViewFuser:
             
         return pcd, a_3d
 
+    def calculate_surface_variation(self, pcd, knn=20):
+        """
+        PCA 고유값 분석을 통한 국소 표면 변동성(Surface Variation) 산출
+        L = lambda1 / (lambda1 + lambda2 + lambda3)
+        이 값은 평면에서 0, 노이즈가 심하거나 곡률이 큰 곳에서 1/3에 가까움.
+        """
+        points = np.asarray(pcd.points)
+        pcd_tree = o3d.geometry.KDTreeSearcher(pcd)
+        variations = []
+        
+        for i in range(len(points)):
+            [k, idx, _] = pcd_tree.search_knn_vector_3d(points[i], knn)
+            if k < 3:
+                variations.append(0.0)
+                continue
+            
+            # 국소 영역 점들의 공분산 행렬 계산
+            neighbor_pts = points[idx, :]
+            cov = np.cov(neighbor_pts.T)
+            eigenvalues = np.linalg.eigvalsh(cov)
+            # lambda1 <= lambda2 <= lambda3
+            variation = eigenvalues[0] / (np.sum(eigenvalues) + 1e-9)
+            variations.append(variation)
+            
+        return np.array(variations)
+
     def extract_fpfh(self, pcd):
         """기하 구조 특징점(FPFH) 추출 최적화 (저질감 대응)"""
         # 법선 추정 범위 확장 (부드러운 평면에서의 일관성 확보)
@@ -220,16 +246,27 @@ class MultiViewFuser:
             accumulated_pcd += source_pcd
             accumulated_pcd = accumulated_pcd.voxel_down_sample(self.voxel_size)
             
-        # 4. 포아송 재구성을 통한 고품질 표면 평활화 (Phase 8 최적화)
-        # 전문가 피드백: 연산력을 활용하여 해상도(depth)를 9로 복구 (고해상도 지형 정보 유지)
-        print("[MultiView] Performing Poisson Surface Reconstruction (Depth=9)...")
+        # 4. 적응형 전처리 및 포아송 재구성 (Phase 9 고도화)
+        print("[MultiView] Calculating Adaptive Weight Map (Normal Variation)...")
+        variations = self.calculate_surface_variation(accumulated_pcd)
+        
+        # 가중치 기반 적응형 노이즈 제거: 
+        # 변화량이 적은(평탄) 구간만 선택적으로 강력한 이상치 제거 수행
+        planar_indices = np.where(variations < np.median(variations))[0]
+        if len(planar_indices) > 0:
+            planar_pcd = accumulated_pcd.select_by_index(planar_indices)
+            cl, ind = planar_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=0.5)
+            # 평탄 구간에서 필터링된 점들을 다시 병합 (곡률 구간은 원본 유지)
+            accumulated_pcd = accumulated_pcd.select_by_index(np.delete(np.arange(len(accumulated_pcd.points)), planar_indices[np.delete(np.arange(len(planar_indices)), ind)]))
+
+        # 5. 고해상도 포아송 재구성 (Depth=9)
+        # 전문가 피드백: 고해상도 옥트리 깊이를 유지하여 물리적 정밀도 상실 방지
+        print("[MultiView] Performing High-Res Poisson Reconstruction (Depth=9)...")
         accumulated_pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
         
-        # 포아송 재구성 수행 (지능형 트리밍 수반)
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(accumulated_pcd, depth=9)
         
-        # 전문가 피드백: 밀도(Density) 기반 적응형 트리밍 알고리즘
-        # 단순히 하위 %를 자르는 것이 아니라, 평균 밀도와의 거리를 고려하여 고립된 평탄면 유실 방지
+        # 지능형 트리밍 (Adaptive Densitiy Trimming)
         densities = np.asanyarray(densities)
         density_mean = np.mean(densities)
         density_std = np.std(densities)

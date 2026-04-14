@@ -32,14 +32,25 @@ class CurvatureAnalyzer:
         # 1. Median Blur (5x5): 뾰족한 스파이크 노이즈 물리적 제거
         Z_norm = cv2.medianBlur(Z_norm, 5)
         
-        # 2. 통계적 이상치 클리핑 (MAD 기반) 전문가 피드백 반영
-        # 헤비 테일 노이즈에 강건한(Robust) MAD(Median Absolute Deviation) 기준 적용
+        # 2. 통계적 이상치 클리핑 (적응형 MAD 기반) 전문가 피드백 반영
+        # 국소 경사도를 계산하여 기하학적 변화가 큰 구간의 데이터 유실 방지
+        grad_x = cv2.Sobel(Z_norm, cv2.CV_32F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(Z_norm, cv2.CV_32F, 0, 1, ksize=3)
+        grad_mag = np.sqrt(grad_x**2 + grad_y**2)
+        
         z_median = np.median(Z_norm)
-        # MAD = median(|x - median(x)|)
         z_mad = np.median(np.abs(Z_norm - z_median))
-        # 3.0 * (MAD * 1.4826)는 대략 3시그마와 유사하지만 이상치에 훨씬 덜 영향받음
-        trim_range = 3.0 * (z_mad * 1.4826 + 1e-7)
-        Z_norm = np.clip(Z_norm, z_median - trim_range, z_median + trim_range)
+        
+        # k계수를 국소 경사도에 따라 동적으로 조절 (High Gradient -> High k)
+        # 평탄면(grad_mag 저)에서는 k=2.5~3.0으로 엄격하게, 곡률부(grad_mag 고)에서는 k=5.0 이상으로 관대하게
+        # 1.4826은 정규분포 가정을 위한 Scale Factor
+        k_base = 3.0
+        k_adaptive = k_base + (grad_mag / (np.max(grad_mag) + 1e-7)) * 5.0
+        
+        upper_limit = z_median + k_adaptive * (z_mad * 1.4826 + 1e-7)
+        lower_limit = z_median - k_adaptive * (z_mad * 1.4826 + 1e-7)
+        
+        Z_norm = np.clip(Z_norm, lower_limit, upper_limit)
 
         if self.type == 'bilateral':
             # 전문가 피드백: 데이터의 표준편차를 기반으로 sigmaColor 동적 결정

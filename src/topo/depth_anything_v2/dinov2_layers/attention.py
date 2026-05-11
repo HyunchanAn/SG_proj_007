@@ -12,6 +12,8 @@ import logging
 
 from torch import Tensor
 from torch import nn
+import torch
+import torch.nn.functional as F
 
 
 logger = logging.getLogger("dinov2")
@@ -19,8 +21,8 @@ logger = logging.getLogger("dinov2")
 
 try:
     from xformers.ops import memory_efficient_attention, unbind, fmha
-
-    XFORMERS_AVAILABLE = True
+    # Force disable xformers due to hardware incompatibility with Blackwell (RTX 5080)
+    XFORMERS_AVAILABLE = False 
 except ImportError:
     logger.warning("xFormers not available")
     XFORMERS_AVAILABLE = False
@@ -64,18 +66,36 @@ class Attention(nn.Module):
 
 class MemEffAttention(Attention):
     def forward(self, x: Tensor, attn_bias=None) -> Tensor:
-        if not XFORMERS_AVAILABLE:
-            assert attn_bias is None, "xFormers is required for nested tensors usage"
-            return super().forward(x)
+        if XFORMERS_AVAILABLE:
+            try:
+                B, N, C = x.shape
+                qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads)
+                q, k, v = unbind(qkv, 2)
 
+                x = memory_efficient_attention(q, k, v, attn_bias=attn_bias)
+                x = x.reshape([B, N, C])
+
+                x = self.proj(x)
+                x = self.proj_drop(x)
+                return x
+            except (NotImplementedError, RuntimeError):
+                # Fallback to native SDPA if xformers operator is missing (e.g. RTX 5080/Blackwell)
+                pass
+
+        # Native PyTorch SDPA Fallback
         B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads)
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
 
-        q, k, v = unbind(qkv, 2)
-
-        x = memory_efficient_attention(q, k, v, attn_bias=attn_bias)
-        x = x.reshape([B, N, C])
-
+        # SDPA automatically handles scale if scale=None, but we use self.scale for consistency
+        x = F.scaled_dot_product_attention(
+            q, k, v, 
+            attn_mask=attn_bias, 
+            dropout_p=self.attn_drop.p if self.training else 0.0,
+            scale=self.scale
+        )
+        
+        x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x

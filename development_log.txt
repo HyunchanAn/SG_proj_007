@@ -36,4 +36,13 @@
 - 메모리 한계(OOM) 극복을 위해 기존 SAM 2/Depth-V2 Large 모델 사용을 Small 모델 구조(`sam2_hiera_small`, `vits`)로 다운사이징하여 `app.py` 런타임에 반영
 - 윈도우 파워쉘 기반 로컬 다운로드 에러 대응 및 클라우드 배포 시 자가(Self) 가중치 다운로드를 위해 `app.py` 내부에 `urllib` 기반 Web 다운로더 로직 구현 (`load_models` 블럭)
 - Streamlit Cloud의 OpenCV 환경 구축을 위한 리눅스 시스템 패키지 매니저 파일(`packages.txt`) 생성 및 `libgl1`, `libglib2.0-0` 매핑
-- **[UI 개선]** 3D 입체 지형 뷰(Plotly Surface)의 Z(세로)축이 과도하게 늘어나는 렌더링 스케일 왜곡 버그 수정 (`aspectratio` 수동 지정)
+
+## 2026-05-11
+- Windows 로컬 환경(cp949 인코딩)에서 실행 시 콘솔 출력문 내 이모지 문자로 인해 발생하는 UnicodeEncodeError 현상 확인
+- 협업 업체의 로컬 구동 호환성 확보를 위해 src/seg/sam2_wrapper.py, main.py, test_pipeline.py 등 주요 진입점의 print 문 내 이모지 전면 제거 및 텍스트 기반 출력으로 교체
+- Streamlit UI 정상 구동 확인을 위한 재검증 절차 수행
+- RTX 5080(Blackwell, CC 12.0) 하드웨어 환경에서 xformers 연산자 미지원에 따른 NotImplementedError 해결: src/topo/depth_anything_v2/dinov2_layers/attention.py 내 XFORMERS_AVAILABLE를 강제로 False로 설정하여 PyTorch 표준 SDPA(Scaled Dot Product Attention) 로직이 동작하도록 강제 적용 및 검증 완료
+- 제품 추천 결과 데이터의 오인 방지를 위해 app.py UI 섹션에 데모용 더미(Mock-up) 데이터 안내 문구 추가 및 다국어 매핑 완료
+- 사용자가 이미지 내 두 점과 실제 길이를 지정하여 물리적 곡률 반경(R)을 도출하는 Interactive Scale Calibration 기능 구현
+- 픽셀 거리 기반 Scale Factor 계산 로직 추가 및 가우시안 곡률(K)로부터 물리 곡률 반경(R mm)을 역산하는 연산 모듈 app.py 통합 완료
+- 3D 토포그래피 지형도(Plotly Surface) 위에 최대 곡률 임계 지점을 Scatter3d 다이아몬드 마커로 시각화하여 직관성 강화

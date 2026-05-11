@@ -15,9 +15,9 @@ class KnowledgeEngine:
         """내장된 CSV 파일로부터 물성 데이터를 로드합니다."""
         try:
             self.db = pd.read_csv(self.db_path)
-            print(f"✅ DB Loaded: {len(self.db)} film records from {self.db_path}")
+            print(f"DB Loaded: {len(self.db)} film records from {self.db_path}")
         except FileNotFoundError:
-            print(f"⚠️ Warning: DB file not found at {self.db_path}")
+            print(f"Warning: DB file not found at {self.db_path}")
             print("초기 개발 테스트를 위해 Mock 데이터를 생성합니다.")
             self.db = pd.DataFrame({
                 'film_id': ['F-001', 'F-002', 'F-003'],

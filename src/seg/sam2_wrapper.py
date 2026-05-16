@@ -23,7 +23,7 @@ class SAM2BaseWrapper:
         else:
             self.device = torch.device(device)
             
-        print(f"🔧 Initializing SAM 2 Wrapper on: {self.device}")
+        print(f"Initializing SAM 2 Wrapper on: {self.device}")
         self.model_cfg = model_cfg
         self.checkpoint_path = checkpoint_path
         

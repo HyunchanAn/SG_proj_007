@@ -6,6 +6,8 @@ from PIL import Image
 
 from streamlit_image_coordinates import streamlit_image_coordinates
 import plotly.graph_objects as go
+import os
+import urllib.request
 
 # Import pipeline modules
 from src.seg.sam2_wrapper import SAM2BaseWrapper
@@ -15,6 +17,12 @@ from src.match.engine import KnowledgeEngine
 
 # Page config
 st.set_page_config(page_title="SG-TERRA AI", page_icon="🔍", layout="wide")
+
+# Initialize Session State
+if 'clicked_points' not in st.session_state:
+    st.session_state['clicked_points'] = []
+if 'last_clicked' not in st.session_state:
+    st.session_state['last_clicked'] = None
 
 # CSS to make the app look premium
 st.markdown("""
@@ -59,8 +67,27 @@ st.markdown("""
 @st.cache_resource(show_spinner=False)
 def load_models():
     """Load and cache the heavy AI models so they don't reload on every interaction."""
-    sam_wrapper = SAM2BaseWrapper(checkpoint_path="models/sam2/sam2_hiera_large.pt")
-    depth_wrapper = DepthAnythingV2Wrapper(checkpoint_path="models/depth_anything_v2/depth_anything_v2_vitl.pth")
+    sam2_cfg = "sam2_hiera_s.yaml"
+    sam2_ckpt = "models/sam2/sam2_hiera_small.pt"
+    sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt"
+    
+    depth_encoder = "vits"
+    depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vits.pth"
+    depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
+    
+    os.makedirs("models/sam2", exist_ok=True)
+    os.makedirs("models/depth_anything_v2", exist_ok=True)
+    
+    if not os.path.exists(sam2_ckpt):
+        print("Downloading SAM 2 Small...")
+        urllib.request.urlretrieve(sam2_url, sam2_ckpt)
+        
+    if not os.path.exists(depth_ckpt):
+        print("Downloading Depth-Anything-V2 Small...")
+        urllib.request.urlretrieve(depth_url, depth_ckpt)
+
+    sam_wrapper = SAM2BaseWrapper(model_cfg=sam2_cfg, checkpoint_path=sam2_ckpt)
+    depth_wrapper = DepthAnythingV2Wrapper(encoder=depth_encoder, checkpoint_path=depth_ckpt)
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
     match_engine = KnowledgeEngine(db_path="data/database/film_properties.csv")
     
@@ -108,7 +135,13 @@ text = {
     "rec_success": {"en": "Analysis successful. Displaying top optimal products tailored to withstand the evaluated physical stress.", "ko": "분석이 정상 종료되었습니다. 측정된 표면의 구조적 응력을 견딜 수 있도록 설계된 최적의 제품군 리스트입니다."},
     "rec_top": {"en": "**🥇 Top Recommendation: {name} ({id})**  \nSurpasses minimum required curvature ({r}mm capacity) with a high correlation score for peel strength and elongation.", "ko": "**🥇 권장 최적 제품 (Top 1): {name} ({id})**  \n요구되는 최소 곡률 반경({r}mm 이상)을 충분히 커버하며 박리력과 연신율간의 상관관계 스코어가 모델 내에서 가장 뛰어납니다."},
     "rec_all": {"en": "### All Feasible Candidates", "ko": "### 추천 가능 대체 후보 테이블"},
-    "missing_image": {"en": "Please upload an image using the sidebar to begin.", "ko": "왼쪽 사이드바에서 테스트 용도로 사용할 판넬 혹은 피착제의 사진을 먼저 업로드하여 주십시오."}
+    "missing_image": {"en": "Please upload an image using the sidebar to begin.", "ko": "왼쪽 사이드바에서 테스트 용도로 사용할 판넬 혹은 피착제의 사진을 먼저 업로드하여 주십시오."},
+    "demo_warning": {"en": "⚠️ Note: The recommendation data below is currently based on Mock-up/Dummy data for development demonstration.", "ko": "⚠️ 안내: 현재 제품 추천 섹션의 데이터는 개발 단계의 데모용 더미(Mock-up) 데이터입니다."},
+    "calib_desc": {"en": "📏 Click two points on the object with a known distance.", "ko": "📏 실제 길이를 알고 있는 두 지점을 이미지 위에서 순서대로 클릭해 주세요."},
+    "calib_point1": {"en": "📍 First point selected. Click the second point.", "ko": "📍 첫 번째 기준점이 선택되었습니다. 두 번째 점을 클릭해 주세요."},
+    "calib_point2": {"en": "✅ Calibration points set! Enter the physical distance in the sidebar.", "ko": "✅ 두 기준점이 모두 선택되었습니다. 사이드바에 실제 길이를 입력해 주세요."},
+    "ref_length_label": {"en": "Actual Reference Length (mm)", "ko": "기준 실제 길이 (mm)"},
+    "pixel_scale_info": {"en": "Scale: {scale:.4f} mm/pixel", "ko": "현재 스케일: {scale:.4f} mm/pixel"}
 }
 
 def t(key, **kwargs):
@@ -140,6 +173,7 @@ smoothing_sigma = st.sidebar.slider(t("sigma"), 0.5, 5.0, 2.0, 0.1, help=t("sigm
 curv_analyzer.sigma = smoothing_sigma
 
 roughness = st.sidebar.number_input(t("roughness"), value=1.0, step=0.1)
+ref_length_mm = st.sidebar.number_input(t("ref_length_label"), value=100.0, step=1.0, min_value=1.0)
 
 # ---------------------------------------------------------
 # Main Execution Pipeline
@@ -151,21 +185,55 @@ if uploaded_file is not None:
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     
     st.subheader(t("step1_title"))
+    st.info(t("calib_desc"))
     
-    # Let the user click the image to select the ROI point
-    value = streamlit_image_coordinates(image_rgb, key="pil")
+    # Image with markings
+    disp_img = image_rgb.copy()
+    for pt in st.session_state['clicked_points']:
+        cv2.circle(disp_img, (pt[0], pt[1]), 8, (0, 255, 0), -1)
+    if len(st.session_state['clicked_points']) == 2:
+        cv2.line(disp_img, st.session_state['clicked_points'][0], st.session_state['clicked_points'][1], (0, 255, 0), 2)
+
+    # Click handler
+    # Use a dynamic key to reset coordinates if a new file is uploaded
+    value = streamlit_image_coordinates(disp_img, key=f"calib_{uploaded_file.name}")
     
+    if value is not None and value != st.session_state['last_clicked']:
+        st.session_state['last_clicked'] = value
+        if len(st.session_state['clicked_points']) < 2:
+            st.session_state['clicked_points'].append((value["x"], value["y"]))
+            st.rerun()
+
+    # Calculation for scale
+    pixel_to_mm = 1.0 # Default fallback
     prompt_points = None
     prompt_labels = None
-    if value is not None:
-        prompt_points = np.array([[value["x"], value["y"]]])
+
+    if len(st.session_state['clicked_points']) == 1:
+        st.info(t("calib_point1"))
+    elif len(st.session_state['clicked_points']) == 2:
+        p1, p2 = st.session_state['clicked_points']
+        dist_px = np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
+        if dist_px > 0:
+            pixel_to_mm = ref_length_mm / dist_px
+            st.success(t("calib_point2"))
+            st.write(t("pixel_scale_info", scale=pixel_to_mm))
+        
+        # Center of two points as SAM 2 target
+        cx, cy = (p1[0]+p2[0])//2, (p1[1]+p2[1])//2
+        prompt_points = np.array([[cx, cy]])
         prompt_labels = np.array([1])
-        st.info(t("target_selected", x=value['x'], y=value['y']))
     else:
-        st.warning(t("target_warning"))
+        st.warning(t("calib_desc"))
+
+    # Reset Button below the description/status
+    if st.button("🔄 Reset Calibration Points / 포인트 초기화", use_container_width=True):
+        st.session_state['clicked_points'] = []
+        st.session_state['last_clicked'] = None
+        st.rerun()
 
     if st.sidebar.button(t("btn_run"), type="primary"):
-        if value is None:
+        if len(st.session_state['clicked_points']) < 2:
             st.error(t("btn_error"))
         else:
             # Create Layout Columns
@@ -193,7 +261,13 @@ if uploaded_file is not None:
                 
                 # Extract Max Stress Point
                 highest_stress_raw = critical_vals[0]
-                estimated_r_mm = 3.5  # In real life, convert raw -> physical mm using a calibration factor
+                
+                # Calculate Physical Radius (R)
+                # R_pixel = 1 / sqrt(|K|)
+                # R_mm = R_pixel * pixel_to_mm
+                r_pixel = 1.0 / np.sqrt(np.abs(highest_stress_raw)) if highest_stress_raw != 0 else 0
+                estimated_r_mm = np.round(r_pixel * pixel_to_mm, 2)
+                
                 t_total = t_seg + t_depth + t_curv
                 
                 status.update(label=t("status_done"), state="complete", expanded=False)
@@ -230,13 +304,43 @@ if uploaded_file is not None:
                 height = int(depth_map.shape[0] * scale_percent / 100)
                 resized_depth = cv2.resize(depth_map, (width, height), interpolation = cv2.INTER_AREA)
                 
-                fig = go.Figure(data=[go.Surface(
-                    z=resized_depth, 
-                    colorscale='Inferno',
-                    contours = {
-                        "z": {"show": True, "size": (np.max(resized_depth)-np.min(resized_depth))/15, "color": "white"}
-                    }
-                )])
+                # Scale critical point to resized grid for 3D visualization
+                y_max, x_max = critical_coords[0]
+                y_scaled = y_max * scale_percent / 100
+                x_scaled = x_max * scale_percent / 100
+                
+                # Get Z value at the critical point from resized depth
+                iy, ix = int(y_scaled), int(x_scaled)
+                # Boundary check for safety
+                iy = min(max(iy, 0), height - 1)
+                ix = min(max(ix, 0), width - 1)
+                z_max = resized_depth[iy, ix]
+
+                fig = go.Figure(data=[
+                    go.Surface(
+                        z=resized_depth, 
+                        colorscale='Inferno',
+                        name='Surface Topology',
+                        contours = {
+                            "z": {"show": True, "size": (np.max(resized_depth)-np.min(resized_depth))/15, "color": "white"}
+                        }
+                    ),
+                    go.Scatter3d(
+                        x=[ix],
+                        y=[iy],
+                        z=[z_max + 0.05], # Slightly offset upward for visibility
+                        mode='markers',
+                        marker=dict(
+                            size=12,
+                            color='cyan',
+                            symbol='diamond',
+                            line=dict(color='white', width=2)
+                        ),
+                        name=t("rec_top").split(":")[0], # Use dynamic label if possible, or simple "Max Curvature"
+                        hovertext=[f"Curvature: {highest_stress_raw:.4f}"],
+                        hoverinfo='text+name'
+                    )
+                ])
                 
                 fig.update_layout(
                     title=t("step3d_chart_title"),
@@ -246,7 +350,9 @@ if uploaded_file is not None:
                     scene=dict(
                         xaxis=dict(showbackground=False),
                         yaxis=dict(showbackground=False),
-                        zaxis=dict(showbackground=False)
+                        zaxis=dict(showbackground=False),
+                        aspectmode='manual',
+                        aspectratio=dict(x=1, y=1, z=0.3)
                     )
                 )
                 st.plotly_chart(fig, use_container_width=True)
@@ -256,6 +362,7 @@ if uploaded_file is not None:
             # ---------------------------------------------------------
             st.markdown("---")
             st.subheader(t("step4_title"))
+            st.warning(t("demo_warning"))
             
             # Display Metrics
             m1, m2, m3 = st.columns(3)

@@ -11,7 +11,7 @@ from src.match.engine import KnowledgeEngine
 
 def main():
     print("==================================================")
-    print("🚀 SG-TERRA Pipeline Initialization (Mock Test)")
+    print("SG-TERRA Pipeline Initialization (Mock Test)")
     print("==================================================")
     
     # 1. Load Dummy Image (1080p)
@@ -29,7 +29,7 @@ def main():
     match_engine = KnowledgeEngine(db_path=db_path)
     
     print("\n--------------------------------------------------")
-    print("🏃 Executing Pipeline...")
+    print("Executing Pipeline...")
     start_total = time.time()
     
     # Step 1: Target Segmentation (SAM 2)
@@ -70,7 +70,7 @@ def main():
     end_total = time.time()
     
     print("\n--------------------------------------------------")
-    print("🎯 Recommendation Results:")
+    print("Recommendation Results:")
     if not recommendations:
         print("No suitable films found for the given curvature.")
     else:
@@ -81,7 +81,7 @@ def main():
             print(f"    - Max Curvature Capacity: {r['max_curvature_radius']} mm")
     
     print("\n--------------------------------------------------")
-    print(f"⏱️ Pipeline Latency Summary:")
+    print(f"Pipeline Latency Summary:")
     print(f" - Segmentation (SAM 2)     : {t_seg*1000:.2f} ms")
     print(f" - Depth Est. (Depth-V2)    : {t_depth*1000:.2f} ms")
     print(f" - Curvature Analysis       : {t_curv*1000:.2f} ms")

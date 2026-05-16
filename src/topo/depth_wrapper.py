@@ -23,7 +23,7 @@ class DepthAnythingV2Wrapper:
         else:
             self.device = torch.device(device)
             
-        print(f"📐 Initializing Depth-Anything-V2 Wrapper on: {self.device}")
+        print(f"Initializing Depth-Anything-V2 Wrapper on: {self.device}")
         self.encoder = encoder
         self.checkpoint_path = checkpoint_path
         self.model = None

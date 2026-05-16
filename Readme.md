@@ -3,12 +3,12 @@
 Project Code: SG_proj_007
 Project Alias: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 
-[![Status](https://img.shields.io/badge/Status-MVP%20Ready-brightgreen?style=flat-square)](file:///c:/Users/chema/Github/SG_proj_007/Readme.md)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](file:///c:/Users/chema/Github/SG_proj_007/Readme.md)
-[![Core](https://img.shields.io/badge/Core-SAM%202-0668E1?style=flat-square&logo=meta&logoColor=white)](file:///c:/Users/chema/Github/SG_proj_007/Readme.md)
-[![Depth](https://img.shields.io/badge/Depth-Anything--V2-black?style=flat-square)](file:///c:/Users/chema/Github/SG_proj_007/Readme.md)
-[![Physics](https://img.shields.io/badge/Physics-Curvature-orange?style=flat-square)](file:///c:/Users/chema/Github/SG_proj_007/Readme.md)
-[![UI](https://img.shields.io/badge/UI-Streamlit-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](file:///c:/Users/chema/Github/SG_proj_007/Readme.md)
+[![Status](https://img.shields.io/badge/Status-v1.0_Release-4c1)](https://github.com/HyunchanAn/SG_proj_007)
+[![Python](https://img.shields.io/badge/Python-3.10+-007ec6)](https://github.com/HyunchanAn/SG_proj_007)
+[![Vision](https://img.shields.io/badge/Vision-SAM_2_%26_Depth-d00)](https://github.com/HyunchanAn/SG_proj_007)
+[![UI](https://img.shields.io/badge/UI-Streamlit-f39c12)](https://github.com/HyunchanAn/SG_proj_007)
+
+
 
 ## 1. Executive Summary
 본 프로젝트는 SAM 2(Segment Anything Model 2)와 Depth-Anything-V2를 결합하여, 강판 가공 전 피착제의 3D 입체 구조(곡률, 조도, 형상)를 단안 이미지로부터 정밀 추출하고, 이를 기반으로 프레스 공정 중 들뜸이나 주름 발생을 최소화할 수 있는 최적 점착 필름 모델을 자동 추천하는 AI 솔루션 구축을 목적으로 함.

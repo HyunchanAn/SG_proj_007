@@ -49,6 +49,68 @@ streamlit run app.py
 uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 ```
 `http://localhost:8000/docs`에 접속하면 Swagger UI를 통해 즉시 이미지를 업로드하고 곡률 분석 및 필름 추천 결과를 JSON으로 테스트할 수 있습니다.
+
+#### API Specification
+
+##### 1. Health Check
+* Endpoint: GET /health
+* Description: 서버 상태 및 AI 모델 로드 완료 여부를 확인합니다.
+* Response:
+```json
+{
+  "status": "ok",
+  "models_loaded": true
+}
+```
+
+##### 2. Analyze Image and Recommend Film
+* Endpoint: POST /api/v1/analyze
+* Description: 강판 표면 이미지를 분석하여 3D 곡률 반경을 추정하고 최적의 보호 필름을 추천합니다.
+* Request Parameters (Multipart Form-Data):
+  * file: 분석할 이미지 파일 (필수)
+  * ref_length_mm: 물리 크기 변환을 위한 기준 참조 길이 (기본값: 100.0, float)
+  * roughness: 강판 표면 조도 Ra (기본값: 1.0, float)
+  * click_x: 이미지 내 선택 좌표의 X축 값 (쉼표로 구분된 문자열, 선택사항, 스케일 계산을 위해 두 점 입력 시 쉼표로 구분)
+  * click_y: 이미지 내 선택 좌표의 Y축 값 (쉼표로 구분된 문자열, 선택사항)
+* Request Example (curl):
+```bash
+curl -X POST "http://localhost:8000/api/v1/analyze" \
+  -F "file=@test_image.jpg" \
+  -F "ref_length_mm=100.0" \
+  -F "roughness=1.0" \
+  -F "click_x=120,240" \
+  -F "click_y=150,150"
+```
+* Response:
+```json
+{
+  "status": "success",
+  "latency_ms": {
+    "segmentation": 120.5,
+    "depth": 350.2,
+    "curvature": 45.1,
+    "matching": 5.4,
+    "total": 521.2
+  },
+  "metrics": {
+    "max_gaussian_curvature_raw": 0.0025,
+    "estimated_radius_mm": 20.0,
+    "critical_point_coords": {
+      "x": 180,
+      "y": 150
+    },
+    "pixel_to_mm_scale": 0.8333
+  },
+  "recommendations": [
+    {
+      "film_model": "Model-A",
+      "suitability": "Highly Recommended",
+      "reason": "박리력 및 연신율 조건이 도출된 곡률에 적합함"
+    }
+  ]
+}
+```
+
 ## 3. Technical Architecture (Multimodal Pipeline)
 시스템은 '시각적 형상 파악'과 '물성 매칭'의 두 단계로 구성됨.
 

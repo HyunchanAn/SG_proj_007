@@ -125,3 +125,7 @@
 - FastAPI 모의 테스트를 위한 `tests/test_api.py` 및 도커 파일(포트 8000) 수정 적용
 - `Readme.md` 파일 내 Installation, Quick Start, API Usage 등 상세 사용법 문서화 완료
 - `git commit` 및 원격 저장소(`origin/main`) 푸시 수행 후 GitHub Actions CI 자동화 파이프라인 구동 상태 확인 대기 중
+
+## 2026-05-22
+- 통합 작업 및 외부 시스템 연동 편의성을 향상시키기 위해 Readme.md 문서에 구체적인 FastAPI REST API 명세서 작성
+- GET /health 및 POST /api/v1/analyze 엔드포인트의 구체적인 입력 파라미터 구조, curl 요청 스크립트 예시 및 JSON 응답 데이터 포맷을 보완 기록함

@@ -10,10 +10,10 @@ import os
 import urllib.request
 
 # Import pipeline modules
-from src.seg.sam2_wrapper import SAM2BaseWrapper
-from src.topo.depth_wrapper import DepthAnythingV2Wrapper
-from src.curv.curvature import CurvatureAnalyzer
-from src.match.engine import KnowledgeEngine
+from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
+from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
+from sg_terra.curv.curvature import CurvatureAnalyzer
+from sg_terra.match.engine import KnowledgeEngine
 
 # Page config
 st.set_page_config(page_title="SG-TERRA AI", page_icon="🔍", layout="wide")

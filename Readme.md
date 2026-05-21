@@ -16,8 +16,39 @@ Project Alias: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 **✅ Current Status: MVP Operation Ready**
 - End-to-end multimodal pipeline (Segmentation ➡️ Depth ➡️ Curvature ➡️ Knowledge Engine matching) successfully implemented.
 - Streamlit interactive UI dashboard (`app.py`) deployed with interactive ROI selection to mitigate background noise.
-- Live inference testing completed using Metal Performance Shaders (MPS) on local MacBook Pro M2 environments.
+- redone dashboard interface to support mobile-first single page UI tailored for iOS/iPhone environments, removing tabs and sidebar settings for better accessibility.
+- Deployed with hybrid coin auto detection and widget state synchronization to resolve Streamlit cache mismatch bugs.
+- **[NEW]** FastAPI 기반의 독립형 REST API 엔드포인트 연동 완료 (Microservice Architecture)
 
+## 3. Installation & Quick Start
+
+### A. Environment Setup
+```bash
+# Clone the repository
+git clone https://github.com/HyunchanAn/SG_proj_007.git
+cd SG_proj_007
+
+# Install as a library with development dependencies (pytest, pre-commit, etc.)
+pip install -e .[dev]
+
+# Setup pre-commit hooks
+pre-commit install
+```
+
+### B. Running the Application (Two Modes)
+SG-TERRA는 시각적 UI를 위한 **Streamlit 모드**와 타 시스템 연동을 위한 **FastAPI 모드**를 모두 지원합니다.
+
+#### Mode 1: Streamlit Dashboard (UI)
+```bash
+streamlit run app.py
+```
+브라우저에서 `http://localhost:8501`에 접속하여 대시보드를 사용할 수 있습니다.
+
+#### Mode 2: FastAPI Headless Server (API)
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+```
+`http://localhost:8000/docs`에 접속하면 Swagger UI를 통해 즉시 이미지를 업로드하고 곡률 분석 및 필름 추천 결과를 JSON으로 테스트할 수 있습니다.
 ## 3. Technical Architecture (Multimodal Pipeline)
 시스템은 '시각적 형상 파악'과 '물성 매칭'의 두 단계로 구성됨.
 

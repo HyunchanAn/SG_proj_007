@@ -46,3 +46,82 @@
 - 사용자가 이미지 내 두 점과 실제 길이를 지정하여 물리적 곡률 반경(R)을 도출하는 Interactive Scale Calibration 기능 구현
 - 픽셀 거리 기반 Scale Factor 계산 로직 추가 및 가우시안 곡률(K)로부터 물리 곡률 반경(R mm)을 역산하는 연산 모듈 app.py 통합 완료
 - 3D 토포그래피 지형도(Plotly Surface) 위에 최대 곡률 임계 지점을 Scatter3d 다이아몬드 마커로 시각화하여 직관성 강화
+
+## 2026-05-20
+- 아이폰(iOS) 등 모바일 기기의 세로형 화면 조작 환경에 맞추어, 기존의 PC용 다중 탭(st.tabs) 및 사이드바(st.sidebar) 위주 UI 레이아웃을 모바일 퍼스트(Mobile-first) 단일 흐름 페이지로 전면 리팩토링함.
+- 사이드바 설정 영역을 메인 상단의 접이식 설정 카드(expander)로 이동하여 화면 효율성과 터치 접근성을 개선함.
+- 표면 에너지(SFE), 표면 마감(V-SAMS), 3D 곡률(SG-TERRA), 종합 리포트의 단계를 세로 아코디언 카드식 레이아웃으로 변경하여 한 손 스크롤로 기동 가능하도록 보완함.
+- 모바일 좁은 화면(340px) 환경에서 캔버스가 잘리지 않도록 동전 지정 및 액적 지정, 3D 곡률 캘리브레이션 입력 캔버스 너비를 340px로 수정하고 이에 따른 물리 좌표 역스케일링 팩터를 일괄 갱신함.
+- 수동 지정 시 Streamlit 위젯 렌더링 값(number_input)이 이전 캐시값으로 고정되어 다른 위치로 오발동하던 캐시 꼬임 문제를 마우스 클릭 시 세션 키 즉각 강제 쓰기 및 key 매핑 종속 구조로 패치하여 완결함.
+- E2E 물리 해석 통합 테스트(pytest)를 재기동하여 UI 개편 후에도 분석 모듈의 연산 정밀도 및 입출력 무결성이 유지됨을 최종 검증 완료함.
+# Development Log: SG-TERRA (SG_proj_007)
+
+## 2026-03-16
+- 프로젝트 SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI) 초기 기획안을 검토 및 Readme.md에 통합 반영
+- 프로젝트의 주요 목표: SAM 2와 Depth-Anything-V2를 결합하여 강판 표면의 3D 입체 구조(곡률, 조도 등)를 단안 이미지에서 추출하고, 최적의 점착 필름을 추천하는 AI 솔루션 개발
+- 핵심 모듈 구성(SEG, TOPO, CURV, MATCH) 및 하드웨어 인프라 전략 확인
+- 향후 주요 과제로 Latency 최적화, 데이터셋 API 연동, Model Fine-tuning을 설정함
+- 프로젝트 초기 설정 (방안 A) 착수: data, models, src, scripts 등의 코어 디렉토리 구조 셋업 및 .gitignore, requirements.txt 초기화 완료
+- src 하위 모듈(seg, topo, curv, match) 패키지화 및 환경 설정용 스크립트(setup_env.sh) 작성
+- SAM 2 및 Depth-Anything-V2 모델 가중치를 다운로드 받기 위한 스크립트(scripts/download_weights.sh) 작성
+- `src/match/engine.py` 파일 생성, CSV 기반 필름 물성 매핑 초안 로직(KnowledgeEngine) 개발
+- `src/seg/sam2_wrapper.py` 파일 생성, 하드웨어 호환성(MPS, CUDA)을 고려한 SAM 2 기본 Wrapper Class 및 로딩 최적화 파이프라인 구현 착수
+- `src/topo/depth_wrapper.py` 로직 개발 완료. SAM 2의 마스크를 인자로 받아 불필요한 영역을 날리는 Resolution Cropping 전략 초안 반영
+- SAM 2 및 Depth-Anything-V2 가중치 백그라운드 다운로드 프로세스 트리거
+- `src/curv/curvature.py` 파일 생성, 노이즈 저감을 위한 Gaussian smoothing 기반 1차/2차 편미분을 통한 Gaussian(K) / Mean(H) Curvature 수학적 연산 및 임계 지점(Stress Concentration) 도출 로직 구현
+- `main.py` 진입점 파일 생성 및 초기 Mock Data 기반의 엔드투엔드 파이프라인(Segmentation -> Depth -> Curvature -> Matching) 테스트 구동 성공 (Total Execution: ~185ms)
+- 모델 패키지(SAM 2, Depth-Anything-V2) 설치 및 실기반 통합 파이프라인(`test_pipeline.py`) 구축
+- 검증용 강판 샘플 이미지 기반 전체 모듈 실제 추론 가동 성공. MPS(Metal Performance Shaders) 환경 하에 Segmentation 약 3초, Depth 추론 약 5.6초 소요 (총 소요 시간: ~8.7초). 향후 최우선 해결 과제인 Latency 병목 구간(Depth-V2) 식별
+- 통합 파이프라인의 입출력 결과(마스킹, 뎁스맵 등) 시각화 및 직관적 테스트 인터페이스를 제공하기 위해 Streamlit 기반 UI 대시보드(`app.py`) 개발 완료 (의존성 패키지 추가 반영)
+- 강판 내 뚫린 공간 등 배경 노이즈(Background Noise)를 타겟으로 오인하는 문제를 해결하기 위해, Streamlit 상에서 사용자가 마우스 클릭으로 SAM 2 Target ROI 좌표(x, y)를 직접 지정할 수 있도록 Interactive patching(`streamlit-image-coordinates`) 적용.
+- 사용자가 입체적인 표면을 더 직관적으로 파악할 수 있도록, Plotly(`go.Surface`) 라이브러리를 활용하여 등고선(Contour)이 포함된 3D Topographic Grid(격자) 인터랙티브 뷰 기능을 추가함.
+- **[UI 개선]** 사용자 편의성을 위해 사이드바에 한국어/English 다국어(i18n) 동적 토글 기능을 추가하고 앱 전체 텍스트를 Dictionary 기반 번역 로직으로 전면 교체함.
+- MVP(초기 구동 목표치) 달성 완료에 따라 관련 문서를 갱신하고 금일 1차 개발 소스 전체를 Github 저장소에 커밋 및 Push 처리.
+## 향후 진행 과제 (Next Action Items)
+1. 추론 지연 시간(Latency) 병목 최적화
+   - Depth-Anything-V2 모듈(약 5.6초 소요)에 TensorRT 또는 ONNX 런타임을 적용하여 레이턴시 단축 시도
+   - 무거운 연산은 클라우드(RTX 5080)로, UI는 로컬 환경으로 이원화하는 하이브리드 아키텍처 구축 검토
+2. 곡률 수치 변환 스케일 캘리브레이션 (Scale Calibration)
+   - Depth 모델이 출력하는 상대적 Z값을 실제 물리적 mm 단위 곡률(R)로 정밀 변환하기 위한 레퍼런스 마커 또는 본석 규격 계수 탐색
+3. 데이터 연동 및 모델 Fine-Tuning
+   - 연구소 점착제 물성 실데이터(CSV) 연동 적용
+   - 금속 강판 특유의 반사광(Specular Reflection) 노이즈 저감을 위한 Depth 예측용 합성 데이터셋 구축 가능성 검토
+
+## 2026-03-29
+- Streamlit Cloud 배포를 위한 브랜치(`feature/streamlit-cloud`) 생성 및 시스템 환경 최적화
+- 메모리 한계(OOM) 극복을 위해 기존 SAM 2/Depth-V2 Large 모델 사용을 Small 모델 구조(`sam2_hiera_small`, `vits`)로 다운사이징하여 `app.py` 런타임에 반영
+- 윈도우 파워쉘 기반 로컬 다운로드 에러 대응 및 클라우드 배포 시 자가(Self) 가중치 다운로드를 위해 `app.py` 내부에 `urllib` 기반 Web 다운로더 로직 구현 (`load_models` 블럭)
+- Streamlit Cloud의 OpenCV 환경 구축을 위한 리눅스 시스템 패키지 매니저 파일(`packages.txt`) 생성 및 `libgl1`, `libglib2.0-0` 매핑
+
+## 2026-05-11
+- Windows 로컬 환경(cp949 인코딩)에서 실행 시 콘솔 출력문 내 이모지 문자로 인해 발생하는 UnicodeEncodeError 현상 확인
+- 협업 업체의 로컬 구동 호환성 확보를 위해 src/seg/sam2_wrapper.py, main.py, test_pipeline.py 등 주요 진입점의 print 문 내 이모지 전면 제거 및 텍스트 기반 출력으로 교체
+- Streamlit UI 정상 구동 확인을 위한 재검증 절차 수행
+- RTX 5080(Blackwell, CC 12.0) 하드웨어 환경에서 xformers 연산자 미지원에 따른 NotImplementedError 해결: src/topo/depth_anything_v2/dinov2_layers/attention.py 내 XFORMERS_AVAILABLE를 강제로 False로 설정하여 PyTorch 표준 SDPA(Scaled Dot Product Attention) 로직이 동작하도록 강제 적용 및 검증 완료
+- 제품 추천 결과 데이터의 오인 방지를 위해 app.py UI 섹션에 데모용 더미(Mock-up) 데이터 안내 문구 추가 및 다국어 매핑 완료
+- 사용자가 이미지 내 두 점과 실제 길이를 지정하여 물리적 곡률 반경(R)을 도출하는 Interactive Scale Calibration 기능 구현
+- 픽셀 거리 기반 Scale Factor 계산 로직 추가 및 가우시안 곡률(K)로부터 물리 곡률 반경(R mm)을 역산하는 연산 모듈 app.py 통합 완료
+- 3D 토포그래피 지형도(Plotly Surface) 위에 최대 곡률 임계 지점을 Scatter3d 다이아몬드 마커로 시각화하여 직관성 강화
+
+## 2026-05-20
+- 아이폰(iOS) 등 모바일 기기의 세로형 화면 조작 환경에 맞추어, 기존의 PC용 다중 탭(st.tabs) 및 사이드바(st.sidebar) 위주 UI 레이아웃을 모바일 퍼스트(Mobile-first) 단일 흐름 페이지로 전면 리팩토링함.
+- 사이드바 설정 영역을 메인 상단의 접이식 설정 카드(expander)로 이동하여 화면 효율성과 터치 접근성을 개선함.
+- 표면 에너지(SFE), 표면 마감(V-SAMS), 3D 곡률(SG-TERRA), 종합 리포트의 단계를 세로 아코디언 카드식 레이아웃으로 변경하여 한 손 스크롤로 기동 가능하도록 보완함.
+- 모바일 좁은 화면(340px) 환경에서 캔버스가 잘리지 않도록 동전 지정 및 액적 지정, 3D 곡률 캘리브레이션 입력 캔버스 너비를 340px로 수정하고 이에 따른 물리 좌표 역스케일링 팩터를 일괄 갱신함.
+- 수동 지정 시 Streamlit 위젯 렌더링 값(number_input)이 이전 캐시값으로 고정되어 다른 위치로 오발동하던 캐시 꼬임 문제를 마우스 클릭 시 세션 키 즉각 강제 쓰기 및 key 매핑 종속 구조로 패치하여 완결함.
+- E2E 물리 해석 통합 테스트(pytest)를 재기동하여 UI 개편 후에도 분석 모듈의 연산 정밀도 및 입출력 무결성이 유지됨을 최종 검증 완료함.
+
+
+## 2026-05-21
+- 프로젝트 표준 라이브러리화를 위해 `src` 디렉토리를 `sg_terra` 네임스페이스로 변경
+- `pyproject.toml` 작성 및 `__init__.py` 수정으로 파이썬 패키징 규격(`pip install .`) 적용 완료
+- `app.py`, `main.py`, `test_pipeline.py` 모듈 import 경로 전면 업데이트(`from sg_terra...`)
+- 배포 및 이식성 강화를 위해 `Dockerfile` 및 `.dockerignore` 작성
+- `pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime` 베이스 이미지 기반 GPU 가속 및 Streamlit UI 통합 컨테이너 환경 구성 완료
+- Github Actions 기반의 자동화 파이프라인(`.github/workflows/python-ci.yml`) 구성 (lint, format, pytest)
+- 코드 품질 검증을 위한 `pre-commit` 훅 세팅 (black, isort, ruff, mypy)
+- `tests/test_engine.py` 단위 테스트 추가하여 `KnowledgeEngine` 매칭 로직 무결성 검증 추가
+- SG_proj_002, 003 등과의 통합을 위한 FastAPI 백엔드 엔드포인트(`api.py`) 연동 완료 (Headless API)
+- FastAPI 모의 테스트를 위한 `tests/test_api.py` 및 도커 파일(포트 8000) 수정 적용
+- `Readme.md` 파일 내 Installation, Quick Start, API Usage 등 상세 사용법 문서화 완료
+- `git commit` 및 원격 저장소(`origin/main`) 푸시 수행 후 GitHub Actions CI 자동화 파이프라인 구동 상태 확인 대기 중

@@ -8,7 +8,7 @@ Project Alias: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 [![Vision](https://img.shields.io/badge/Vision-SAM_2_%26_Depth-d00)](https://github.com/HyunchanAn/SG_proj_007)
 [![UI](https://img.shields.io/badge/UI-Streamlit-f39c12)](https://github.com/HyunchanAn/SG_proj_007)
 
-
+🌐 **라이브 데모 (Live Demo)**: [https://sg-proj-007.streamlit.app/](https://sg-proj-007.streamlit.app/)
 
 ## 1. Executive Summary
 본 프로젝트는 SAM 2(Segment Anything Model 2)와 Depth-Anything-V2를 결합하여, 강판 가공 전 피착제의 3D 입체 구조(곡률, 조도, 형상)를 단안 이미지로부터 정밀 추출하고, 이를 기반으로 프레스 공정 중 들뜸이나 주름 발생을 최소화할 수 있는 최적 점착 필름 모델을 자동 추천하는 AI 솔루션 구축을 목적으로 함.

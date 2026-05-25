@@ -67,26 +67,17 @@ st.markdown("""
 @st.cache_resource(show_spinner=False)
 def load_models():
     """Load and cache the heavy AI models so they don't reload on every interaction."""
-    sam2_cfg = "sam2_hiera_s.yaml"
-    sam2_ckpt = "models/sam2/sam2_hiera_small.pt"
-    sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt"
+    sam_wrapper = SAM2BaseWrapper() # Now uses HuggingFace internally or MobileSAM
     
     depth_encoder = "vits"
     depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vits.pth"
     depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
     
-    os.makedirs("models/sam2", exist_ok=True)
     os.makedirs("models/depth_anything_v2", exist_ok=True)
-    
-    if not os.path.exists(sam2_ckpt):
-        print("Downloading SAM 2 Small...")
-        urllib.request.urlretrieve(sam2_url, sam2_ckpt)
-        
     if not os.path.exists(depth_ckpt):
         print("Downloading Depth-Anything-V2 Small...")
         urllib.request.urlretrieve(depth_url, depth_ckpt)
-
-    sam_wrapper = SAM2BaseWrapper(model_cfg=sam2_cfg, checkpoint_path=sam2_ckpt)
+        
     depth_wrapper = DepthAnythingV2Wrapper(encoder=depth_encoder, checkpoint_path=depth_ckpt)
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
     match_engine = KnowledgeEngine(db_path="data/database/film_properties.csv")

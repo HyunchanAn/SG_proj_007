@@ -128,3 +128,6 @@
 
 ## 2026-05-22
 - `sg_terra` 패키지화 작업 후 발생한 Streamlit Cloud 상의 ModuleNotFoundError 버그 수정 (depth_wrapper.py의 import 경로를 src에서 sg_terra로 갱신함).
+
+2026-06-02 00:43:01
+- README.md에 아키텍처 다이어그램 및 순서도 일괄 추가, 이모티콘 제거

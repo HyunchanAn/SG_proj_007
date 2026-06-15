@@ -7,5 +7,5 @@ __all__ = [
     "SAM2BaseWrapper",
     "DepthAnythingV2Wrapper",
     "CurvatureAnalyzer",
-    "KnowledgeEngine"
+    "KnowledgeEngine",
 ]

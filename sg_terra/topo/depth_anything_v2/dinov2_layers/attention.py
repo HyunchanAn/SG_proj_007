@@ -12,7 +12,6 @@ import logging
 
 from torch import Tensor
 from torch import nn
-import torch
 import torch.nn.functional as F
 
 
@@ -21,8 +20,9 @@ logger = logging.getLogger("dinov2")
 
 try:
     from xformers.ops import memory_efficient_attention, unbind, fmha
+
     # Force disable xformers due to hardware incompatibility with Blackwell (RTX 5080)
-    XFORMERS_AVAILABLE = False 
+    XFORMERS_AVAILABLE = False
 except ImportError:
     logger.warning("xFormers not available")
     XFORMERS_AVAILABLE = False
@@ -50,7 +50,11 @@ class Attention(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        qkv = (
+            self.qkv(x)
+            .reshape(B, N, 3, self.num_heads, C // self.num_heads)
+            .permute(2, 0, 3, 1, 4)
+        )
 
         q, k, v = qkv[0] * self.scale, qkv[1], qkv[2]
         attn = q @ k.transpose(-2, -1)
@@ -84,20 +88,24 @@ class MemEffAttention(Attention):
 
         # Native PyTorch SDPA Fallback
         B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        qkv = (
+            self.qkv(x)
+            .reshape(B, N, 3, self.num_heads, C // self.num_heads)
+            .permute(2, 0, 3, 1, 4)
+        )
         q, k, v = qkv[0], qkv[1], qkv[2]
 
         # SDPA automatically handles scale if scale=None, but we use self.scale for consistency
         x = F.scaled_dot_product_attention(
-            q, k, v, 
-            attn_mask=attn_bias, 
+            q,
+            k,
+            v,
+            attn_mask=attn_bias,
             dropout_p=self.attn_drop.p if self.training else 0.0,
-            scale=self.scale
+            scale=self.scale,
         )
-        
+
         x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
-
-        

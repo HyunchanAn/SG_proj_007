@@ -13,7 +13,6 @@ import urllib.request
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
 from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
 from sg_terra.curv.curvature import CurvatureAnalyzer
-from sg_terra.match.engine import KnowledgeEngine
 
 # Page config
 st.set_page_config(page_title="SG-TERRA AI", page_icon="🔍", layout="wide")
@@ -100,13 +99,12 @@ def load_models():
     sam_wrapper = SAM2BaseWrapper(model_cfg=sam2_cfg, checkpoint_path=sam2_ckpt)
     depth_wrapper = DepthAnythingV2Wrapper(encoder=depth_encoder, checkpoint_path=depth_ckpt)
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
-    match_engine = KnowledgeEngine(db_path="data/database/film_properties.csv")
     
     # Trigger inner load methods
     sam_wrapper.load_model()
     depth_wrapper.load_model()
     
-    return sam_wrapper, depth_wrapper, curv_analyzer, match_engine
+    return sam_wrapper, depth_wrapper, curv_analyzer
 
 # ---------------------------------------------------------
 # Translation Dictionary
@@ -138,16 +136,11 @@ text = {
     "step3d_title": {"en": "🌍 Show Interactive 3D Topographic Grid & Contour", "ko": "🌍 인터랙티브 3D 입체 지형 격자 및 등고선 보기 (클릭하여 열기)"},
     "step3d_desc": {"en": "Use your mouse/touch to rotate, zoom, and explore the physical surface grid.", "ko": "마우스나 터치 제스처를 사용하여 3D 모델을 회전하거나 확대/축소하며 표면의 굴곡을 살펴보십시오."},
     "step3d_chart_title": {"en": "3D Depth Heatmap Framework", "ko": "3D 심도 히트맵 프레임워크"},
-    "step4_title": {"en": "4. Material Match Recommendation", "ko": "4. 적합 점착제 필름 매칭 데이터베이스 리포트"},
+    "step4_title": {"en": "4. Final Analysis Report", "ko": "4. 최종 분석 결과 리포트"},
     "metric1": {"en": "Max Gaussian Curvature (K)", "ko": "최대 가우시안 곡률치 (K)"},
     "metric2": {"en": "Estimated Min Radius", "ko": "추정 최소 곡률 반경 한계치 (R)"},
     "metric3": {"en": "Total Inference Time", "ko": "통합 처리 파이프라인 레이턴시"},
-    "rec_error": {"en": "No suitable adhesive films found for this level of extreme curvature in the database.", "ko": "연구소 데이터베이스 내에 이 수준의 극한 곡률을 버틸 수 있는 적합한 특수 점착 필름군이 존재하지 않습니다."},
-    "rec_success": {"en": "Analysis successful. Displaying top optimal products tailored to withstand the evaluated physical stress.", "ko": "분석이 정상 종료되었습니다. 측정된 표면의 구조적 응력을 견딜 수 있도록 설계된 최적의 제품군 리스트입니다."},
-    "rec_top": {"en": "**🥇 Top Recommendation: {name} ({id})**  \nSurpasses minimum required curvature ({r}mm capacity) with a high correlation score for peel strength and elongation.", "ko": "**🥇 권장 최적 제품 (Top 1): {name} ({id})**  \n요구되는 최소 곡률 반경({r}mm 이상)을 충분히 커버하며 박리력과 연신율간의 상관관계 스코어가 모델 내에서 가장 뛰어납니다."},
-    "rec_all": {"en": "### All Feasible Candidates", "ko": "### 추천 가능 대체 후보 테이블"},
     "missing_image": {"en": "Please upload an image using the sidebar to begin.", "ko": "왼쪽 사이드바에서 테스트 용도로 사용할 판넬 혹은 피착제의 사진을 먼저 업로드하여 주십시오."},
-    "demo_warning": {"en": "⚠️ Note: The recommendation data below is currently based on Mock-up/Dummy data for development demonstration.", "ko": "⚠️ 안내: 현재 제품 추천 섹션의 데이터는 개발 단계의 데모용 더미(Mock-up) 데이터입니다."},
     "calib_desc": {"en": "📏 Click two points on the object with a known distance.", "ko": "📏 실제 길이를 알고 있는 두 지점을 이미지 위에서 순서대로 클릭해 주세요."},
     "calib_point1": {"en": "📍 First point selected. Click the second point.", "ko": "📍 첫 번째 기준점이 선택되었습니다. 두 번째 점을 클릭해 주세요."},
     "calib_point2": {"en": "✅ Calibration points set! Enter the physical distance in the sidebar.", "ko": "✅ 두 기준점이 모두 선택되었습니다. 사이드바에 실제 길이를 입력해 주세요."},
@@ -173,7 +166,7 @@ st.title(t("title"))
 st.markdown(t("desc"))
 
 with st.spinner(t("init")):
-    sam_wrapper, depth_wrapper, curv_analyzer, match_engine = load_models()
+    sam_wrapper, depth_wrapper, curv_analyzer = load_models()
 
 st.sidebar.header(t("controls"))
 uploaded_file = st.sidebar.file_uploader(t("upload"), type=['jpg', 'jpeg', 'png'])
@@ -369,11 +362,10 @@ if uploaded_file is not None:
                 st.plotly_chart(fig, use_container_width=True)
                 
             # ---------------------------------------------------------
-            # Data & Recommendation Report
+            # Data & Analysis Report
             # ---------------------------------------------------------
             st.markdown("---")
             st.subheader(t("step4_title"))
-            st.warning(t("demo_warning"))
             
             # Display Metrics
             m1, m2, m3 = st.columns(3)
@@ -385,19 +377,5 @@ if uploaded_file is not None:
                 st.markdown(f'<div class="metric-card"><div class="metric-value">{t_total:.2f} s</div><div class="metric-label">{t("metric3")}</div></div>', unsafe_allow_html=True)
                 
             st.write("")
-            
-            # Recommendations
-            recommendations = match_engine.recommend(measured_curvature=estimated_r_mm, measured_roughness=roughness)
-            
-            if not recommendations:
-                st.error(t("rec_error"))
-            else:
-                st.success(t("rec_success"))
-                best_match = recommendations[0]
-                st.info(t("rec_top", name=best_match['film_name'], id=best_match['film_id'], r=best_match['max_curvature_radius']))
-                
-                # Show all options in a table
-                st.write(t("rec_all"))
-                st.dataframe(recommendations, use_container_width=True)
 else:
     st.info(t("missing_image"))

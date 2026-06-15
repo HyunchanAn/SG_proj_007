@@ -7,7 +7,6 @@ import cv2
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
 from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
 from sg_terra.curv.curvature import CurvatureAnalyzer
-from sg_terra.match.engine import KnowledgeEngine
 
 def main():
     print("==================================================")
@@ -24,9 +23,7 @@ def main():
     depth_wrapper = DepthAnythingV2Wrapper()
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
     
-    # match engine expects CSV, but will fallback to mock
-    db_path = "data/database/film_properties.csv"
-    match_engine = KnowledgeEngine(db_path=db_path)
+
     
     print("\n--------------------------------------------------")
     print("Executing Pipeline...")
@@ -62,30 +59,19 @@ def main():
     print(f"\n[Analysis Result] Max Stress Point found at {critical_coords[0]} with raw curvature {highest_stress_val:.4f}")
     print(f"[Analysis Result] Estimated Minimum Curvature Radius (R) = {estimated_r_mm} mm")
     
-    # Step 4: Material Matching
-    t0 = time.time()
-    recommendations = match_engine.recommend(measured_curvature=estimated_r_mm, measured_roughness=1.0)
-    t_match = time.time() - t0
+
     
     end_total = time.time()
     
     print("\n--------------------------------------------------")
-    print("Recommendation Results:")
-    if not recommendations:
-        print("No suitable films found for the given curvature.")
-    else:
-        for idx, r in enumerate(recommendations, 1):
-            print(f" {idx}. {r['film_name']} (ID: {r['film_id']})")
-            print(f"    - Score: {r['match_score']:.1f}")
-            print(f"    - Specs: Peel {r['peel_strength']} N/25mm, Cohesion {r['cohesion']} min, Elongation {r['elongation']}%")
-            print(f"    - Max Curvature Capacity: {r['max_curvature_radius']} mm")
+
     
     print("\n--------------------------------------------------")
     print(f"Pipeline Latency Summary:")
     print(f" - Segmentation (SAM 2)     : {t_seg*1000:.2f} ms")
     print(f" - Depth Est. (Depth-V2)    : {t_depth*1000:.2f} ms")
     print(f" - Curvature Analysis       : {t_curv*1000:.2f} ms")
-    print(f" - Material Matching Engine : {t_match*1000:.2f} ms")
+
     print(f" = Total Pipeline Execution : {(end_total - start_total)*1000:.2f} ms")
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ import os
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
 from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
 from sg_terra.curv.curvature import CurvatureAnalyzer
-from sg_terra.match.engine import KnowledgeEngine
+
 
 # Global objects to hold models
 models: Dict[str, Any] = {}
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
     sam_wrapper = SAM2BaseWrapper(model_cfg=sam2_cfg, checkpoint_path=sam2_ckpt)
     depth_wrapper = DepthAnythingV2Wrapper(encoder=depth_encoder, checkpoint_path=depth_ckpt)
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
-    match_engine = KnowledgeEngine(db_path="data/database/film_properties.csv")
+
     
     sam_wrapper.load_model()
     depth_wrapper.load_model()
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     models["sam"] = sam_wrapper
     models["depth"] = depth_wrapper
     models["curv"] = curv_analyzer
-    models["match"] = match_engine
+
     
     print("All models loaded successfully.")
     yield
@@ -149,10 +149,7 @@ async def analyze_image(
     r_pixel = 1.0 / np.sqrt(np.abs(highest_stress_raw)) if highest_stress_raw != 0 else 0
     estimated_r_mm = round(float(r_pixel * pixel_to_mm), 2)
     
-    # Step 4: Matching
-    t0 = time.time()
-    recommendations = models["match"].recommend(measured_curvature=estimated_r_mm, measured_roughness=roughness)
-    t_match = time.time() - t0
+
     
     t_total = time.time() - start_total
     
@@ -162,7 +159,7 @@ async def analyze_image(
             "segmentation": round(t_seg * 1000, 2),
             "depth": round(t_depth * 1000, 2),
             "curvature": round(t_curv * 1000, 2),
-            "matching": round(t_match * 1000, 2),
+
             "total": round(t_total * 1000, 2)
         },
         "metrics": {
@@ -170,8 +167,7 @@ async def analyze_image(
             "estimated_radius_mm": estimated_r_mm,
             "critical_point_coords": {"x": x_max, "y": y_max},
             "pixel_to_mm_scale": round(pixel_to_mm, 4)
-        },
-        "recommendations": recommendations
+        }
     })
 
 if __name__ == "__main__":

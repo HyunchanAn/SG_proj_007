@@ -19,7 +19,7 @@ logger = logging.getLogger("dinov2")
 
 
 try:
-    from xformers.ops import memory_efficient_attention, unbind
+    from xformers.ops import memory_efficient_attention, unbind, fmha
 
     # Force disable xformers due to hardware incompatibility with Blackwell (RTX 5080)
     XFORMERS_AVAILABLE = False

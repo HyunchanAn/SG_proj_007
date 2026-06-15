@@ -1,7 +1,8 @@
-import torch
-import numpy as np
 import time
-from typing import Optional, Any
+from typing import Any, Optional
+
+import numpy as np
+import torch
 
 
 class DepthAnythingV2Wrapper:
@@ -35,9 +36,7 @@ class DepthAnythingV2Wrapper:
         # PyTorch FP16/BF16 Mixed Precision 추론 최적화 (NVIDIA GPU 한정)
         if self.device.type == "cuda":
             torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
-            if (
-                torch.cuda.get_device_properties(0).major >= 8
-            ):  # Ampere 아키텍처 이상 TF32 허용
+            if torch.cuda.get_device_properties(0).major >= 8:  # Ampere 아키텍처 이상 TF32 허용
                 torch.backends.cuda.matmul.allow_tf32 = True
                 torch.backends.cudnn.allow_tf32 = True
 

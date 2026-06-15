@@ -10,10 +10,8 @@
 
 import logging
 
-from torch import Tensor
-from torch import nn
 import torch.nn.functional as F
-
+from torch import Tensor, nn
 
 logger = logging.getLogger("dinov2")
 

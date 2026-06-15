@@ -1,7 +1,8 @@
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+
 from api import app, models
-import numpy as np
 
 
 # We can bypass the real models by inserting dummy objects into the `models` dict

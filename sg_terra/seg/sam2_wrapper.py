@@ -1,7 +1,8 @@
-import torch
-import numpy as np
 import time
-from typing import Optional, Any
+from typing import Any, Optional
+
+import numpy as np
+import torch
 
 
 class SAM2BaseWrapper:

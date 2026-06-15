@@ -1,18 +1,17 @@
+import os
 import time
+import urllib.request
+from contextlib import asynccontextmanager
+from typing import Any, Dict, Optional
+
 import cv2
 import numpy as np
-from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any
-
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-import urllib.request
-import os
 
+from sg_terra.curv.curvature import CurvatureAnalyzer
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
 from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
-from sg_terra.curv.curvature import CurvatureAnalyzer
-
 
 # Global objects to hold models
 models: Dict[str, Any] = {}

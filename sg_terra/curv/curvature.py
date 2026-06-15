@@ -1,6 +1,7 @@
+from typing import Optional
+
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from typing import Optional
 
 
 class CurvatureAnalyzer:

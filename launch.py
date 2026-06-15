@@ -1,7 +1,7 @@
 import os
-import urllib.request
 import subprocess
 import sys
+import urllib.request
 
 
 def download_file(url, dest):

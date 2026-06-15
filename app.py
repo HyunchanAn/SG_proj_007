@@ -1,17 +1,18 @@
-import streamlit as st
-import numpy as np
-import cv2
-import time
-
-from streamlit_image_coordinates import streamlit_image_coordinates
-import plotly.graph_objects as go
 import os
+import time
 import urllib.request
+
+import cv2
+import numpy as np
+import plotly.graph_objects as go
+import streamlit as st
+from streamlit_image_coordinates import streamlit_image_coordinates
+
+from sg_terra.curv.curvature import CurvatureAnalyzer
 
 # Import pipeline modules
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
 from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
-from sg_terra.curv.curvature import CurvatureAnalyzer
 
 # Page config
 st.set_page_config(page_title="SG-TERRA AI", page_icon="🔍", layout="wide")
@@ -324,9 +325,7 @@ if uploaded_file is not None:
         st.warning(t("calib_desc"))
 
     # Reset Button below the description/status
-    if st.button(
-        "🔄 Reset Calibration Points / 포인트 초기화", use_container_width=True
-    ):
+    if st.button("🔄 Reset Calibration Points / 포인트 초기화", use_container_width=True):
         st.session_state["clicked_points"] = []
         st.session_state["last_clicked"] = None
         st.rerun()

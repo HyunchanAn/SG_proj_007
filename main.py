@@ -1,10 +1,12 @@
 import time
+
 import numpy as np
+
+from sg_terra.curv.curvature import CurvatureAnalyzer
 
 # import pipeline modules
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
 from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
-from sg_terra.curv.curvature import CurvatureAnalyzer
 
 
 def main():

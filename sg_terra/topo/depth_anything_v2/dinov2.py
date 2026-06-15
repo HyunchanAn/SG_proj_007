@@ -7,24 +7,19 @@
 #   https://github.com/facebookresearch/dino/blob/main/vision_transformer.py
 #   https://github.com/rwightman/pytorch-image-models/tree/master/timm/models/vision_transformer.py
 
-from functools import partial
-import math
 import logging
-from typing import Sequence, Union, Callable, Any
+import math
+from functools import partial
+from typing import Any, Callable, Sequence, Union
 
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
 from torch.nn.init import trunc_normal_
 
-from .dinov2_layers import (
-    Mlp,
-    PatchEmbed,
-    SwiGLUFFNFused,
-    MemEffAttention,
-    NestedTensorBlock as Block,
-)
-
+from .dinov2_layers import MemEffAttention, Mlp
+from .dinov2_layers import NestedTensorBlock as Block
+from .dinov2_layers import PatchEmbed, SwiGLUFFNFused
 
 logger = logging.getLogger("dinov2")
 
@@ -108,9 +103,9 @@ class DinoVisionTransformer(nn.Module):
         super().__init__()
         norm_layer = partial(nn.LayerNorm, eps=1e-6)
 
-        self.num_features = self.embed_dim = (
-            embed_dim  # num_features for consistency with other models
-        )
+        self.num_features = (
+            self.embed_dim
+        ) = embed_dim  # num_features for consistency with other models
         self.num_tokens = 1
         self.n_blocks = depth
         self.num_heads = num_heads
@@ -317,9 +312,9 @@ class DinoVisionTransformer(nn.Module):
             x = blk(x)
             if i in blocks_to_take:
                 output.append(x)
-        assert len(output) == len(blocks_to_take), (
-            f"only {len(output)} / {len(blocks_to_take)} blocks found"
-        )
+        assert len(output) == len(
+            blocks_to_take
+        ), f"only {len(output)} / {len(blocks_to_take)} blocks found"
         return output
 
     def _get_intermediate_layers_chunked(self, x, n=1):
@@ -335,9 +330,9 @@ class DinoVisionTransformer(nn.Module):
                 if i in blocks_to_take:
                     output.append(x)
                 i += 1
-        assert len(output) == len(blocks_to_take), (
-            f"only {len(output)} / {len(blocks_to_take)} blocks found"
-        )
+        assert len(output) == len(
+            blocks_to_take
+        ), f"only {len(output)} / {len(blocks_to_take)} blocks found"
         return output
 
     def get_intermediate_layers(

@@ -1,12 +1,14 @@
 import os
 import time
+
 import cv2
+
+from sg_terra.curv.curvature import CurvatureAnalyzer
+from sg_terra.match.engine import KnowledgeEngine
 
 # import pipeline modules
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
 from sg_terra.topo.depth_wrapper import DepthAnythingV2Wrapper
-from sg_terra.curv.curvature import CurvatureAnalyzer
-from sg_terra.match.engine import KnowledgeEngine
 
 
 def main():

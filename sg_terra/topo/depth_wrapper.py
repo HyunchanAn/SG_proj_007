@@ -39,7 +39,7 @@ class DepthAnythingV2Wrapper:
         """
         모델 파라미터를 메모리에 적재.
         """
-        from src.topo.depth_anything_v2.dpt import DepthAnythingV2
+        from sg_terra.topo.depth_anything_v2.dpt import DepthAnythingV2
         
         model_configs = {
             'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},

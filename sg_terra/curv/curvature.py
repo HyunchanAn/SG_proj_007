@@ -109,7 +109,7 @@ if __name__ == "__main__":
     # 반경 30인 구의 상단부 (Z = sqrt(R^2 - x^2 - y^2))
     r2 = 30**2
     mask = (x**2 + y**2) < r2
-    dummy_depth = np.zeros((h, w), dtype=np.float32)
+    dummy_depth: np.ndarray = np.zeros((h, w), dtype=np.float32)
     dummy_depth[mask] = np.sqrt(r2 - x[mask] ** 2 - y[mask] ** 2)
 
     # 계산

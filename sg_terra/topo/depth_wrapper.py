@@ -2,11 +2,12 @@ import torch
 import numpy as np
 import cv2
 import time
+from typing import Optional, Any
 
 class DepthAnythingV2Wrapper:
     def __init__(self, encoder: str = 'vitl', 
                  checkpoint_path: str = "../../models/depth_anything_v2/depth_anything_v2_vitl.pth", 
-                 device: str = None):
+                 device: Optional[str] = None):
         """
         Depth-Anything-V2 기반 3D Topography 재구성 파이프라인.
         :param encoder: 모델 인코더 크기 ('vits', 'vitb', 'vitl'). 기본값은 Large.
@@ -26,7 +27,7 @@ class DepthAnythingV2Wrapper:
         print(f"Initializing Depth-Anything-V2 Wrapper on: {self.device}")
         self.encoder = encoder
         self.checkpoint_path = checkpoint_path
-        self.model = None
+        self.model: Any = None
         
         # PyTorch FP16/BF16 Mixed Precision 추론 최적화 (NVIDIA GPU 한정)
         if self.device.type == "cuda":
@@ -52,7 +53,7 @@ class DepthAnythingV2Wrapper:
         self.model = self.model.to(self.device).eval()
         print("Depth-Anything-V2 loaded successfully.")
 
-    def estimate_depth(self, image: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
+    def estimate_depth(self, image: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
         """
         단안 이미지에서 해상도 높은 Depth Map 추정.
         SAM 마스크를 활용하여 ROI 영역에 집중, Latency와 노이즈 최적화.

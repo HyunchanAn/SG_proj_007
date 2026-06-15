@@ -183,7 +183,7 @@ def drop_add_residual_stochastic_depth_list(
     residual_func: Callable[[Tensor, Any], Tensor],
     sample_drop_ratio: float = 0.0,
     scaling_vector=None,
-) -> Tensor:
+) -> List[Tensor]:
     # 1) generate random set of indices for dropping samples in the batch
     branges_scales = [get_branges_scales(x, sample_drop_ratio=sample_drop_ratio) for x in x_list]
     branges = [s[0] for s in branges_scales]

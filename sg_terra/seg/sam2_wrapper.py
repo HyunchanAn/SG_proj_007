@@ -2,11 +2,12 @@ import torch
 import numpy as np
 import cv2
 import time
+from typing import Optional, Any
 
 class SAM2BaseWrapper:
     def __init__(self, model_cfg: str = "sam2_hiera_l.yaml", 
                  checkpoint_path: str = "../../models/sam2/sam2_hiera_large.pt", 
-                 device: str = None):
+                 device: Optional[str] = None):
         """
         SAM 2 기반 Target Segmentation 파이프라인 구성.
         :param model_cfg: SAM 2 모델 구조 설정 파일 (기본: Hiera-Large)
@@ -28,8 +29,8 @@ class SAM2BaseWrapper:
         self.checkpoint_path = checkpoint_path
         
         # 모델 빌드 및 로드 로직 (실제 sam2 패키지가 설치된 후 매핑)
-        self.model = None
-        self.predictor = None
+        self.model: Any = None
+        self.predictor: Any = None
         
         # PyTorch FP16/BF16 Mixed Precision 추론 최적화 (NVIDIA GPU 한정)
         if self.device.type == "cuda":
@@ -50,7 +51,7 @@ class SAM2BaseWrapper:
         self.predictor = SAM2ImagePredictor(self.model)
         print("SAM 2 loaded successfully.")
 
-    def segment_target(self, image: np.ndarray, prompt_points: np.ndarray = None, prompt_labels: np.ndarray = None) -> np.ndarray:
+    def segment_target(self, image: np.ndarray, prompt_points: Optional[np.ndarray] = None, prompt_labels: Optional[np.ndarray] = None) -> np.ndarray:
         """
         입력 이미지에서 강판(Target)만을 Segmentation 처리.
         :param image: HxWxC 포맷의 numpy 이미지 (RGB)

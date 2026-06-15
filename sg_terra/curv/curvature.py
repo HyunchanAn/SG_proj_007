@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from scipy.ndimage import gaussian_filter
+from typing import Optional
 
 class CurvatureAnalyzer:
     def __init__(self, smoothing_sigma: float = 2.0):
@@ -10,7 +11,7 @@ class CurvatureAnalyzer:
         """
         self.sigma = smoothing_sigma
 
-    def calculate_gaussian_curvature(self, depth_map: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
+    def calculate_gaussian_curvature(self, depth_map: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Depth Map 식으로부터 Gaussian Curvature(K)를 계산.
         K = (Zxx * Zyy - Zxy^2) / (1 + Zx^2 + Zy^2)^2
@@ -43,7 +44,7 @@ class CurvatureAnalyzer:
             
         return K
 
-    def calculate_mean_curvature(self, depth_map: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
+    def calculate_mean_curvature(self, depth_map: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Depth Map 식으로부터 Mean Curvature(H)를 계산.
         H = ((1 + Zx^2)*Zyy - 2*Zx*Zy*Zxy + (1 + Zy^2)*Zxx) / (2*(1 + Zx^2 + Zy^2)^(3/2))
@@ -65,7 +66,7 @@ class CurvatureAnalyzer:
             
         return H
         
-    def find_critical_points(self, curvature_map: np.ndarray, mask: np.ndarray = None, top_k: int = 5):
+    def find_critical_points(self, curvature_map: np.ndarray, mask: Optional[np.ndarray] = None, top_k: int = 5):
         """
         곡률이 가장 심한 임계 영역(Stress Concentration)의 픽셀 좌표를 도출.
         절대값이 클수록 급격하게 꺾임.

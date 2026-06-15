@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import cv2
 import time
+from PIL import Image
 
 from streamlit_image_coordinates import streamlit_image_coordinates
 import plotly.graph_objects as go
@@ -17,14 +18,13 @@ from sg_terra.curv.curvature import CurvatureAnalyzer
 st.set_page_config(page_title="SG-TERRA AI", page_icon="🔍", layout="wide")
 
 # Initialize Session State
-if "clicked_points" not in st.session_state:
-    st.session_state["clicked_points"] = []
-if "last_clicked" not in st.session_state:
-    st.session_state["last_clicked"] = None
+if 'clicked_points' not in st.session_state:
+    st.session_state['clicked_points'] = []
+if 'last_clicked' not in st.session_state:
+    st.session_state['last_clicked'] = None
 
 # CSS to make the app look premium
-st.markdown(
-    """
+st.markdown("""
 <style>
     .reportview-container {
         background: #f0f2f6;
@@ -58,10 +58,7 @@ st.markdown(
         color: #6B7280;
     }
 </style>
-""",
-    unsafe_allow_html=True,
-)
-
+""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # Caching Heavy Models
@@ -70,12 +67,12 @@ st.markdown(
 def load_models():
     """Load and cache the heavy AI models so they don't reload on every interaction."""
     deploy_env = os.environ.get("DEPLOY_ENV", "local")
-
+    
     if deploy_env == "cloud":
         sam2_cfg = "sam2_hiera_s.yaml"
         sam2_ckpt = "models/sam2/sam2_hiera_small.pt"
         sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt"
-
+        
         depth_encoder = "vits"
         depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vits.pth"
         depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
@@ -83,152 +80,73 @@ def load_models():
         sam2_cfg = "sam2_hiera_l.yaml"
         sam2_ckpt = "models/sam2/sam2_hiera_large.pt"
         sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_large.pt"
-
+        
         depth_encoder = "vitl"
         depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vitl.pth"
         depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth"
-
+        
     os.makedirs("models/sam2", exist_ok=True)
     os.makedirs("models/depth_anything_v2", exist_ok=True)
-
+    
     if not os.path.exists(sam2_ckpt):
         print(f"Downloading SAM 2 ({deploy_env})...")
         urllib.request.urlretrieve(sam2_url, sam2_ckpt)
-
+        
     if not os.path.exists(depth_ckpt):
         print(f"Downloading Depth-Anything-V2 ({deploy_env})...")
         urllib.request.urlretrieve(depth_url, depth_ckpt)
 
     sam_wrapper = SAM2BaseWrapper(model_cfg=sam2_cfg, checkpoint_path=sam2_ckpt)
-    depth_wrapper = DepthAnythingV2Wrapper(
-        encoder=depth_encoder, checkpoint_path=depth_ckpt
-    )
+    depth_wrapper = DepthAnythingV2Wrapper(encoder=depth_encoder, checkpoint_path=depth_ckpt)
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
-
+    
     # Trigger inner load methods
     sam_wrapper.load_model()
     depth_wrapper.load_model()
-
+    
     return sam_wrapper, depth_wrapper, curv_analyzer
-
 
 # ---------------------------------------------------------
 # Translation Dictionary
 # ---------------------------------------------------------
 text = {
-    "title": {
-        "en": "SG-TERRA: Topographic Evaluation & Recommendation",
-        "ko": "SG-TERRA: 3D 표면 분석 및 필름 추천 시스템",
-    },
-    "desc": {
-        "en": "Upload an image of a steel plate to analyze its 3D structural curvature and get the optimal adhesive film recommendation.",
-        "ko": "강판의 이미지를 업로드하여 3D 구조적 곡률을 분석하고 최적의 점착 필름 추천을 받아보세요.",
-    },
-    "init": {
-        "en": "Initializing AI Models (SAM 2 & Depth-Anything-V2)... This only happens once.",
-        "ko": "AI 모델(SAM 2 & Depth-V2)을 로드 중입니다... (최초 1회 단일 적용 지연)",
-    },
+    "title": {"en": "SG-TERRA: Topographic Evaluation & Recommendation", "ko": "SG-TERRA: 3D 표면 분석 및 필름 추천 시스템"},
+    "desc": {"en": "Upload an image of a steel plate to analyze its 3D structural curvature and get the optimal adhesive film recommendation.", "ko": "강판의 이미지를 업로드하여 3D 구조적 곡률을 분석하고 최적의 점착 필름 추천을 받아보세요."},
+    "init": {"en": "Initializing AI Models (SAM 2 & Depth-Anything-V2)... This only happens once.", "ko": "AI 모델(SAM 2 & Depth-V2)을 로드 중입니다... (최초 1회 단일 적용 지연)"},
     "controls": {"en": "Controls & Settings", "ko": "조작 및 설정 (Controls)"},
     "upload": {"en": "Upload Plate Image", "ko": "분석용 강판 이미지 업로드"},
     "params": {"en": "Analysis Parameters", "ko": "파라미터 미세 조정 (Tuning)"},
-    "sigma": {
-        "en": "Gaussian Smoothing (\u03c3)",
-        "ko": "가우시안 곡률 평활화 (\u03c3)",
-    },
-    "sigma_help": {
-        "en": "Higher values reduce noise but may smooth out sharp curvatures.",
-        "ko": "값이 클수록 노이즈(난반사 오판 등)가 줄어들지만 미세한 굴곡이 무뎌질 수 있습니다.",
-    },
+    "sigma": {"en": "Gaussian Smoothing (\u03C3)", "ko": "가우시안 곡률 평활화 (\u03C3)"},
+    "sigma_help": {"en": "Higher values reduce noise but may smooth out sharp curvatures.", "ko": "값이 클수록 노이즈(난반사 오판 등)가 줄어들지만 미세한 굴곡이 무뎌질 수 있습니다."},
     "roughness": {"en": "Surface Roughness (Ra)", "ko": "목표 표면 조도 (Ra)"},
-    "step1_title": {
-        "en": "1. Source Image (Click to target the steel plate 😎)",
-        "ko": "1. 소스 이미지 (분석 대상을 마우스로 직접 클릭하세요 😎)",
-    },
-    "target_selected": {
-        "en": "📍 Target point selected at: X={x}, Y={y}. Click 'Run Topology Analysis' below.",
-        "ko": "📍 타겟이 성공적으로 선택되었습니다: X={x}, Y={y}. 아래 '분석 실행' 버튼을 눌러주세요.",
-    },
-    "target_warning": {
-        "en": "👈 Please click on the steel plate in the image to set the SAM 2 target point.",
-        "ko": "👈 마우스를 움직여 이미지 내 타겟 피착제를 클릭해 주십시오.",
-    },
+    "step1_title": {"en": "1. Source Image (Click to target the steel plate 😎)", "ko": "1. 소스 이미지 (분석 대상을 마우스로 직접 클릭하세요 😎)"},
+    "target_selected": {"en": "📍 Target point selected at: X={x}, Y={y}. Click 'Run Topology Analysis' below.", "ko": "📍 타겟이 성공적으로 선택되었습니다: X={x}, Y={y}. 아래 '분석 실행' 버튼을 눌러주세요."},
+    "target_warning": {"en": "👈 Please click on the steel plate in the image to set the SAM 2 target point.", "ko": "👈 마우스를 움직여 이미지 내 타겟 피착제를 클릭해 주십시오."},
     "btn_run": {"en": "Run Topology Analysis 🚀", "ko": "AI 파이프라인 분석 실행 🚀"},
-    "btn_error": {
-        "en": "Please explicitly click on the steel plate target inside the image above to tell the AI what to analyze!",
-        "ko": "클릭된 좌표가 없습니다. AI가 어떤 대상을 찾아야 할지 이미지 위를 클릭하여 알려주세요!",
-    },
-    "status_running": {
-        "en": "Running Multimodal AI Pipeline...",
-        "ko": "멀티모달 AI 파이프라인 가동 중...",
-    },
-    "msg_seg": {
-        "en": "Target Segmentation (SAM 2)...",
-        "ko": "1단계: 타겟 분할 추출 영역 식별 (SAM 2 모듈)...",
-    },
-    "msg_depth": {
-        "en": "Estimating Depth (Depth-Anything-V2)...",
-        "ko": "2단계: 깊이 심도 추정 (Depth-Anything-V2 모듈)...",
-    },
-    "msg_curv": {
-        "en": "Calculating Stress Concentration Zones...",
-        "ko": "3단계: 노이즈 보정 및 곡률 응력 집중 영역 계산 (수학 모듈)...",
-    },
+    "btn_error": {"en": "Please explicitly click on the steel plate target inside the image above to tell the AI what to analyze!", "ko": "클릭된 좌표가 없습니다. AI가 어떤 대상을 찾아야 할지 이미지 위를 클릭하여 알려주세요!"},
+    "status_running": {"en": "Running Multimodal AI Pipeline...", "ko": "멀티모달 AI 파이프라인 가동 중..."},
+    "msg_seg": {"en": "Target Segmentation (SAM 2)...", "ko": "1단계: 타겟 분할 추출 영역 식별 (SAM 2 모듈)..."},
+    "msg_depth": {"en": "Estimating Depth (Depth-Anything-V2)...", "ko": "2단계: 깊이 심도 추정 (Depth-Anything-V2 모듈)..."},
+    "msg_curv": {"en": "Calculating Stress Concentration Zones...", "ko": "3단계: 노이즈 보정 및 곡률 응력 집중 영역 계산 (수학 모듈)..."},
     "status_done": {"en": "Analysis Complete!", "ko": "모든 분석이 완료되었습니다!"},
-    "step2_title": {
-        "en": "2. Target Segmentation Map",
-        "ko": "2. 피착제 타겟 식별 마스크 (Seg. Map)",
-    },
-    "step2_cap": {
-        "en": "SAM 2 Target Extracted Mask ({time:.1f}ms)",
-        "ko": "SAM 2 분할 추출 소요시간 ({time:.1f}ms)",
-    },
+    "step2_title": {"en": "2. Target Segmentation Map", "ko": "2. 피착제 타겟 식별 마스크 (Seg. Map)"},
+    "step2_cap": {"en": "SAM 2 Target Extracted Mask ({time:.1f}ms)", "ko": "SAM 2 분할 추출 소요시간 ({time:.1f}ms)"},
     "step3_title": {"en": "3. 3D Depth Topography", "ko": "3. 3D 깊이 추정 토포그래피"},
-    "step3_cap": {
-        "en": "Relative Depth Output ({time:.1f}ms)",
-        "ko": "상대적 2.5D 깊이 출력 결과 ({time:.1f}ms)",
-    },
-    "step3d_title": {
-        "en": "🌍 Show Interactive 3D Topographic Grid & Contour",
-        "ko": "🌍 인터랙티브 3D 입체 지형 격자 및 등고선 보기 (클릭하여 열기)",
-    },
-    "step3d_desc": {
-        "en": "Use your mouse/touch to rotate, zoom, and explore the physical surface grid.",
-        "ko": "마우스나 터치 제스처를 사용하여 3D 모델을 회전하거나 확대/축소하며 표면의 굴곡을 살펴보십시오.",
-    },
-    "step3d_chart_title": {
-        "en": "3D Depth Heatmap Framework",
-        "ko": "3D 심도 히트맵 프레임워크",
-    },
+    "step3_cap": {"en": "Relative Depth Output ({time:.1f}ms)", "ko": "상대적 2.5D 깊이 출력 결과 ({time:.1f}ms)"},
+    "step3d_title": {"en": "🌍 Show Interactive 3D Topographic Grid & Contour", "ko": "🌍 인터랙티브 3D 입체 지형 격자 및 등고선 보기 (클릭하여 열기)"},
+    "step3d_desc": {"en": "Use your mouse/touch to rotate, zoom, and explore the physical surface grid.", "ko": "마우스나 터치 제스처를 사용하여 3D 모델을 회전하거나 확대/축소하며 표면의 굴곡을 살펴보십시오."},
+    "step3d_chart_title": {"en": "3D Depth Heatmap Framework", "ko": "3D 심도 히트맵 프레임워크"},
     "step4_title": {"en": "4. Final Analysis Report", "ko": "4. 최종 분석 결과 리포트"},
     "metric1": {"en": "Max Gaussian Curvature (K)", "ko": "최대 가우시안 곡률치 (K)"},
     "metric2": {"en": "Estimated Min Radius", "ko": "추정 최소 곡률 반경 한계치 (R)"},
     "metric3": {"en": "Total Inference Time", "ko": "통합 처리 파이프라인 레이턴시"},
-    "missing_image": {
-        "en": "Please upload an image using the sidebar to begin.",
-        "ko": "왼쪽 사이드바에서 테스트 용도로 사용할 판넬 혹은 피착제의 사진을 먼저 업로드하여 주십시오.",
-    },
-    "calib_desc": {
-        "en": "📏 Click two points on the object with a known distance.",
-        "ko": "📏 실제 길이를 알고 있는 두 지점을 이미지 위에서 순서대로 클릭해 주세요.",
-    },
-    "calib_point1": {
-        "en": "📍 First point selected. Click the second point.",
-        "ko": "📍 첫 번째 기준점이 선택되었습니다. 두 번째 점을 클릭해 주세요.",
-    },
-    "calib_point2": {
-        "en": "✅ Calibration points set! Enter the physical distance in the sidebar.",
-        "ko": "✅ 두 기준점이 모두 선택되었습니다. 사이드바에 실제 길이를 입력해 주세요.",
-    },
-    "ref_length_label": {
-        "en": "Actual Reference Length (mm)",
-        "ko": "기준 실제 길이 (mm)",
-    },
-    "pixel_scale_info": {
-        "en": "Scale: {scale:.4f} mm/pixel",
-        "ko": "현재 스케일: {scale:.4f} mm/pixel",
-    },
+    "missing_image": {"en": "Please upload an image using the sidebar to begin.", "ko": "왼쪽 사이드바에서 테스트 용도로 사용할 판넬 혹은 피착제의 사진을 먼저 업로드하여 주십시오."},
+    "calib_desc": {"en": "📏 Click two points on the object with a known distance.", "ko": "📏 실제 길이를 알고 있는 두 지점을 이미지 위에서 순서대로 클릭해 주세요."},
+    "calib_point1": {"en": "📍 First point selected. Click the second point.", "ko": "📍 첫 번째 기준점이 선택되었습니다. 두 번째 점을 클릭해 주세요."},
+    "calib_point2": {"en": "✅ Calibration points set! Enter the physical distance in the sidebar.", "ko": "✅ 두 기준점이 모두 선택되었습니다. 사이드바에 실제 길이를 입력해 주세요."},
+    "ref_length_label": {"en": "Actual Reference Length (mm)", "ko": "기준 실제 길이 (mm)"},
+    "pixel_scale_info": {"en": "Scale: {scale:.4f} mm/pixel", "ko": "현재 스케일: {scale:.4f} mm/pixel"}
 }
-
 
 def t(key, **kwargs):
     """Returns the translation for the current language toggle state."""
@@ -236,7 +154,6 @@ def t(key, **kwargs):
     if kwargs:
         return s.format(**kwargs)
     return s
-
 
 # ---------------------------------------------------------
 # Sidebar & Header
@@ -252,19 +169,15 @@ with st.spinner(t("init")):
     sam_wrapper, depth_wrapper, curv_analyzer = load_models()
 
 st.sidebar.header(t("controls"))
-uploaded_file = st.sidebar.file_uploader(t("upload"), type=["jpg", "jpeg", "png"])
+uploaded_file = st.sidebar.file_uploader(t("upload"), type=['jpg', 'jpeg', 'png'])
 
 # Tuning
 st.sidebar.subheader(t("params"))
-smoothing_sigma = st.sidebar.slider(
-    t("sigma"), 0.5, 5.0, 2.0, 0.1, help=t("sigma_help")
-)
+smoothing_sigma = st.sidebar.slider(t("sigma"), 0.5, 5.0, 2.0, 0.1, help=t("sigma_help"))
 curv_analyzer.sigma = smoothing_sigma
 
 roughness = st.sidebar.number_input(t("roughness"), value=1.0, step=0.1)
-ref_length_mm = st.sidebar.number_input(
-    t("ref_length_label"), value=100.0, step=1.0, min_value=1.0
-)
+ref_length_mm = st.sidebar.number_input(t("ref_length_label"), value=100.0, step=1.0, min_value=1.0)
 
 # ---------------------------------------------------------
 # Main Execution Pipeline
@@ -274,111 +187,93 @@ if uploaded_file is not None:
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
     image_bgr = cv2.imdecode(file_bytes, 1)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-
+    
     st.subheader(t("step1_title"))
     st.info(t("calib_desc"))
-
+    
     # Image with markings
     disp_img = image_rgb.copy()
-    for pt in st.session_state["clicked_points"]:
+    for pt in st.session_state['clicked_points']:
         cv2.circle(disp_img, (pt[0], pt[1]), 8, (0, 255, 0), -1)
-    if len(st.session_state["clicked_points"]) == 2:
-        cv2.line(
-            disp_img,
-            st.session_state["clicked_points"][0],
-            st.session_state["clicked_points"][1],
-            (0, 255, 0),
-            2,
-        )
+    if len(st.session_state['clicked_points']) == 2:
+        cv2.line(disp_img, st.session_state['clicked_points'][0], st.session_state['clicked_points'][1], (0, 255, 0), 2)
 
     # Click handler
     # Use a dynamic key to reset coordinates if a new file is uploaded
     value = streamlit_image_coordinates(disp_img, key=f"calib_{uploaded_file.name}")
-
-    if value is not None and value != st.session_state["last_clicked"]:
-        st.session_state["last_clicked"] = value
-        if len(st.session_state["clicked_points"]) < 2:
-            st.session_state["clicked_points"].append((value["x"], value["y"]))
+    
+    if value is not None and value != st.session_state['last_clicked']:
+        st.session_state['last_clicked'] = value
+        if len(st.session_state['clicked_points']) < 2:
+            st.session_state['clicked_points'].append((value["x"], value["y"]))
             st.rerun()
 
     # Calculation for scale
-    pixel_to_mm = 1.0  # Default fallback
+    pixel_to_mm = 1.0 # Default fallback
     prompt_points = None
     prompt_labels = None
 
-    if len(st.session_state["clicked_points"]) == 1:
+    if len(st.session_state['clicked_points']) == 1:
         st.info(t("calib_point1"))
-    elif len(st.session_state["clicked_points"]) == 2:
-        p1, p2 = st.session_state["clicked_points"]
-        dist_px = np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+    elif len(st.session_state['clicked_points']) == 2:
+        p1, p2 = st.session_state['clicked_points']
+        dist_px = np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
         if dist_px > 0:
             pixel_to_mm = ref_length_mm / dist_px
             st.success(t("calib_point2"))
             st.write(t("pixel_scale_info", scale=pixel_to_mm))
-
+        
         # Center of two points as SAM 2 target
-        cx, cy = (p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2
+        cx, cy = (p1[0]+p2[0])//2, (p1[1]+p2[1])//2
         prompt_points = np.array([[cx, cy]])
         prompt_labels = np.array([1])
     else:
         st.warning(t("calib_desc"))
 
     # Reset Button below the description/status
-    if st.button(
-        "🔄 Reset Calibration Points / 포인트 초기화", use_container_width=True
-    ):
-        st.session_state["clicked_points"] = []
-        st.session_state["last_clicked"] = None
+    if st.button("🔄 Reset Calibration Points / 포인트 초기화", use_container_width=True):
+        st.session_state['clicked_points'] = []
+        st.session_state['last_clicked'] = None
         st.rerun()
 
     if st.sidebar.button(t("btn_run"), type="primary"):
-        if len(st.session_state["clicked_points"]) < 2:
+        if len(st.session_state['clicked_points']) < 2:
             st.error(t("btn_error"))
         else:
             # Create Layout Columns
             col1, col2 = st.columns(2)
-
+            
             with st.status(t("status_running"), expanded=True) as status:
                 # Step 1: Segmentation
                 st.write(t("msg_seg"))
                 t0 = time.time()
-                target_mask = sam_wrapper.segment_target(
-                    image_rgb, prompt_points=prompt_points, prompt_labels=prompt_labels
-                )
+                target_mask = sam_wrapper.segment_target(image_rgb, prompt_points=prompt_points, prompt_labels=prompt_labels)
                 t_seg = time.time() - t0
-
+            
                 # Step 2: Depth Estimation
                 st.write(t("msg_depth"))
                 t0 = time.time()
                 depth_map = depth_wrapper.estimate_depth(image_rgb, mask=target_mask)
                 t_depth = time.time() - t0
-
+                
                 # Step 3: Curvature Analysis
                 st.write(t("msg_curv"))
                 t0 = time.time()
-                gaussian_curv = curv_analyzer.calculate_gaussian_curvature(
-                    depth_map, mask=target_mask
-                )
-                critical_vals, critical_coords = curv_analyzer.find_critical_points(
-                    gaussian_curv, mask=target_mask, top_k=1
-                )
+                gaussian_curv = curv_analyzer.calculate_gaussian_curvature(depth_map, mask=target_mask)
+                critical_vals, critical_coords = curv_analyzer.find_critical_points(gaussian_curv, mask=target_mask, top_k=1)
                 t_curv = time.time() - t0
-
+                
                 # Extract Max Stress Point
                 highest_stress_raw = critical_vals[0]
-
+                
                 # Calculate Physical Radius (R)
                 # R_pixel = 1 / sqrt(|K|)
                 # R_mm = R_pixel * pixel_to_mm
-                r_pixel = (
-                    1.0 / np.sqrt(np.abs(highest_stress_raw))
-                    if highest_stress_raw != 0
-                    else 0
-                )
+                r_pixel = 1.0 / np.sqrt(np.abs(highest_stress_raw)) if highest_stress_raw != 0 else 0
                 estimated_r_mm = np.round(r_pixel * pixel_to_mm, 2)
-
+                
                 t_total = t_seg + t_depth + t_curv
-
+                
                 status.update(label=t("status_done"), state="complete", expanded=False)
 
             # ---------------------------------------------------------
@@ -388,47 +283,36 @@ if uploaded_file is not None:
                 st.subheader(t("step2_title"))
                 # Apply color overlay to the mask
                 colored_mask = np.zeros_like(image_rgb)
-                colored_mask[target_mask] = [0, 255, 0]  # Green overlay
+                colored_mask[target_mask] = [0, 255, 0] # Green overlay
                 blended = cv2.addWeighted(image_rgb, 0.7, colored_mask, 0.3, 0)
-                st.image(
-                    blended,
-                    use_container_width=True,
-                    caption=t("step2_cap", time=t_seg * 1000),
-                )
-
+                st.image(blended, use_container_width=True, caption=t("step2_cap", time=t_seg*1000))
+                
             with col2:
                 st.subheader(t("step3_title"))
                 # Normalize depth for visualization (0-255)
-                depth_vis = cv2.normalize(
-                    depth_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U
-                )
+                depth_vis = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
                 depth_colormap = cv2.applyColorMap(depth_vis, cv2.COLORMAP_INFERNO)
                 depth_colormap_rgb = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
-                st.image(
-                    depth_colormap_rgb,
-                    use_container_width=True,
-                    caption=t("step3_cap", time=t_depth * 1000),
-                )
+                st.image(depth_colormap_rgb, use_container_width=True, caption=t("step3_cap", time=t_depth*1000))
 
+                
             # ---------------------------------------------------------
             # Interactive 3D Grid / Contour
             # ---------------------------------------------------------
             with st.expander(t("step3d_title")):
                 st.markdown(t("step3d_desc"))
-
-                # Downsample for browser performance
+                
+                # Downsample for browser performance 
                 scale_percent = 20
                 width = int(depth_map.shape[1] * scale_percent / 100)
                 height = int(depth_map.shape[0] * scale_percent / 100)
-                resized_depth = cv2.resize(
-                    depth_map, (width, height), interpolation=cv2.INTER_AREA
-                )
-
+                resized_depth = cv2.resize(depth_map, (width, height), interpolation = cv2.INTER_AREA)
+                
                 # Scale critical point to resized grid for 3D visualization
                 y_max, x_max = critical_coords[0]
                 y_scaled = y_max * scale_percent / 100
                 x_scaled = x_max * scale_percent / 100
-
+                
                 # Get Z value at the critical point from resized depth
                 iy, ix = int(y_scaled), int(x_scaled)
                 # Boundary check for safety
@@ -436,43 +320,32 @@ if uploaded_file is not None:
                 ix = min(max(ix, 0), width - 1)
                 z_max = resized_depth[iy, ix]
 
-                fig = go.Figure(
-                    data=[
-                        go.Surface(
-                            z=resized_depth,
-                            colorscale="Inferno",
-                            name="Surface Topology",
-                            contours={
-                                "z": {
-                                    "show": True,
-                                    "size": (
-                                        np.max(resized_depth) - np.min(resized_depth)
-                                    )
-                                    / 15,
-                                    "color": "white",
-                                }
-                            },
+                fig = go.Figure(data=[
+                    go.Surface(
+                        z=resized_depth, 
+                        colorscale='Inferno',
+                        name='Surface Topology',
+                        contours = {
+                            "z": {"show": True, "size": (np.max(resized_depth)-np.min(resized_depth))/15, "color": "white"}
+                        }
+                    ),
+                    go.Scatter3d(
+                        x=[ix],
+                        y=[iy],
+                        z=[z_max + 0.05], # Slightly offset upward for visibility
+                        mode='markers',
+                        marker=dict(
+                            size=12,
+                            color='cyan',
+                            symbol='diamond',
+                            line=dict(color='white', width=2)
                         ),
-                        go.Scatter3d(
-                            x=[ix],
-                            y=[iy],
-                            z=[z_max + 0.05],  # Slightly offset upward for visibility
-                            mode="markers",
-                            marker=dict(
-                                size=12,
-                                color="cyan",
-                                symbol="diamond",
-                                line=dict(color="white", width=2),
-                            ),
-                            name=t("rec_top").split(":")[
-                                0
-                            ],  # Use dynamic label if possible, or simple "Max Curvature"
-                            hovertext=[f"Curvature: {highest_stress_raw:.4f}"],
-                            hoverinfo="text+name",
-                        ),
-                    ]
-                )
-
+                        name=t("rec_top").split(":")[0], # Use dynamic label if possible, or simple "Max Curvature"
+                        hovertext=[f"Curvature: {highest_stress_raw:.4f}"],
+                        hoverinfo='text+name'
+                    )
+                ])
+                
                 fig.update_layout(
                     title=t("step3d_chart_title"),
                     autosize=True,
@@ -482,36 +355,27 @@ if uploaded_file is not None:
                         xaxis=dict(showbackground=False),
                         yaxis=dict(showbackground=False),
                         zaxis=dict(showbackground=False),
-                        aspectmode="manual",
-                        aspectratio=dict(x=1, y=1, z=0.3),
-                    ),
+                        aspectmode='manual',
+                        aspectratio=dict(x=1, y=1, z=0.3)
+                    )
                 )
                 st.plotly_chart(fig, use_container_width=True)
-
+                
             # ---------------------------------------------------------
             # Data & Analysis Report
             # ---------------------------------------------------------
             st.markdown("---")
             st.subheader(t("step4_title"))
-
+            
             # Display Metrics
             m1, m2, m3 = st.columns(3)
             with m1:
-                st.markdown(
-                    f'<div class="metric-card"><div class="metric-value">{highest_stress_raw:.4f}</div><div class="metric-label">{t("metric1")}</div></div>',
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f'<div class="metric-card"><div class="metric-value">{highest_stress_raw:.4f}</div><div class="metric-label">{t("metric1")}</div></div>', unsafe_allow_html=True)
             with m2:
-                st.markdown(
-                    f'<div class="metric-card"><div class="metric-value">R ≈ {estimated_r_mm} mm</div><div class="metric-label">{t("metric2")}</div></div>',
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f'<div class="metric-card"><div class="metric-value">R ≈ {estimated_r_mm} mm</div><div class="metric-label">{t("metric2")}</div></div>', unsafe_allow_html=True)
             with m3:
-                st.markdown(
-                    f'<div class="metric-card"><div class="metric-value">{t_total:.2f} s</div><div class="metric-label">{t("metric3")}</div></div>',
-                    unsafe_allow_html=True,
-                )
-
+                st.markdown(f'<div class="metric-card"><div class="metric-value">{t_total:.2f} s</div><div class="metric-label">{t("metric3")}</div></div>', unsafe_allow_html=True)
+                
             st.write("")
 else:
     st.info(t("missing_image"))

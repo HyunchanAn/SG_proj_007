@@ -3,10 +3,10 @@
 프로젝트 코드: SG_proj_007
 프로젝트 별칭: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)
 
-[![Status](https://img.shields.io/badge/Status-v1.0_Release-4c1)](https://github.com/HyunchanAn/SG_proj_007)
-[![Python](https://img.shields.io/badge/Python-3.10+-007ec6)](https://github.com/HyunchanAn/SG_proj_007)
-[![Vision](https://img.shields.io/badge/Vision-SAM_2_%26_Depth-d00)](https://github.com/HyunchanAn/SG_proj_007)
-[![UI](https://img.shields.io/badge/UI-Streamlit-f39c12)](https://github.com/HyunchanAn/SG_proj_007)
+![Status](https://img.shields.io/badge/Status-Active-success)
+![Python](https://img.shields.io/badge/Python-3.x-blue)
+![Framework](https://img.shields.io/badge/Framework-PyTorch_SAM2-orange)
+![Hardware](https://img.shields.io/badge/Hardware-RTX_5080-lightgrey)
 
 ## 기술 아키텍처 및 워크플로우
 

@@ -20,7 +20,7 @@ graph TD
 ```
 
 ## 1. 요약
-본 프로젝트는 SAM 2(Segment Anything Model 2)와 Depth-Anything-V2를 결합하여, 강판 가공 전 피착제의 3D 입체 구조(곡률, 조도, 형상)를 단안 이미지로부터 정밀 추출하고, 이를 기반으로 프레스 공정 중 들뜸이나 주름 발생을 최소화할 수 있는 최적 점착 필름 모델을 자동 추천하는 AI 솔루션 구축을 목적으로 함.
+본 프로젝트는 SAM 2(Segment Anything Model 2)와 Depth-Anything-V2를 결합하여, 강판 가공 전 피착제의 3D 입체 구조(곡률, 조도, 형상)를 단안 이미지로부터 추출함.
 
 ## 2. 저장소 개요
 - 저장소 이름: SG_proj_007
@@ -33,7 +33,7 @@ graph TD
 - `feature/multi-view`: [연구] 다각도 사진을 활용한 3D 정밀 재구성 및 퓨전 기능을 포함합니다. 현재 도입 여부를 검토 중인 고도화 기능들을 독립적으로 유지하여 `main`의 안정성을 보전합니다.
 
 현재 상태: MVP 운영 준비 완료
-- Segmentation 에서 Depth, Curvature, Knowledge Engine 매칭으로 이어지는 엔드투엔드 멀티모달 파이프라인 구현 성공.
+- Segmentation에서 Depth, Curvature 추출로 이어지는 엔드투엔드 3D 표면 재구성 파이프라인 구현 성공.
 - 배경 노이즈를 완화하기 위해 사용자가 직접 ROI를 지정할 수 있는 Streamlit 기반 대시보드(app.py) 배포.
 - 모바일 환경에 맞춘 인터페이스 개편.
 - FastAPI 기반의 독립형 REST API 엔드포인트 연동 완료 (마이크로서비스 아키텍처).
@@ -77,13 +77,10 @@ uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 - 깊이 추정 (Depth-Anything-V2): 단일 시점 이미지에서 픽셀 단위의 상대적 깊이(Relative Depth)를 추정.
 - 지형적 지표 추출: 추출된 3D 포인트 클라우드에서 Gaussian Curvature(K) 및 표면적 확장 비율을 계산하여 가공 시 응력 집중 구간을 예측.
 
-
-
 ## 5. 핵심 기능 모듈 (007 파이프라인)
 - 모듈: SEG (표면 추출 그룹): SAM 2 기반으로 피착제 영역 자동 분할. 
 - 모듈: TOPO (지형 재구성): Depth-Anything-V2를 이용한 단안 깊이 추정.
 - 모듈: CURV (곡률 분석): 생성된 3D 지형에서 Curvature 계산 및 임계 지점 식별.
-
 
 ## 6. 구현 전략 (하드웨어 및 소프트웨어)
 - 컴퓨팅 파워: AMD Ryzen 9 9900X + RTX 5080.
@@ -107,7 +104,6 @@ uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 | 분할 정밀도 | SAM 2 Mask IoU | 94.2% | 강판 표면 ROI 추출 기준 |
 | 재구성 오차 | 곡률 오차율 | < 0.1% | Scale Calibration 적용 시 |
 
-
 ### C. 테스트 실행 방법
 ```bash
 # 통합 파이프라인 성능 측정
@@ -120,6 +116,5 @@ python test_pipeline.py
 - 클라우드 이식성: Streamlit Cloud 환경 내 의존성 및 자가 모델 로딩 테스트 통과.
 
 ## 8. 향후 진행 과제
-
 - 모델 파인 튜닝: 금속 표면 특화 뎁스 추정을 위한 합성 데이터 생성 및 학습 파이프라인 구축.
 - 레이턴시 최적화: SAM 2 및 Depth-Anything-V2 파이프라인의 추론 지연 시간 최소화.

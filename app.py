@@ -67,23 +67,34 @@ st.markdown("""
 @st.cache_resource(show_spinner=False)
 def load_models():
     """Load and cache the heavy AI models so they don't reload on every interaction."""
-    sam2_cfg = "sam2_hiera_s.yaml"
-    sam2_ckpt = "models/sam2/sam2_hiera_small.pt"
-    sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt"
+    deploy_env = os.environ.get("DEPLOY_ENV", "local")
     
-    depth_encoder = "vits"
-    depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vits.pth"
-    depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
-    
+    if deploy_env == "cloud":
+        sam2_cfg = "sam2_hiera_s.yaml"
+        sam2_ckpt = "models/sam2/sam2_hiera_small.pt"
+        sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt"
+        
+        depth_encoder = "vits"
+        depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vits.pth"
+        depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
+    else:
+        sam2_cfg = "sam2_hiera_l.yaml"
+        sam2_ckpt = "models/sam2/sam2_hiera_large.pt"
+        sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_large.pt"
+        
+        depth_encoder = "vitl"
+        depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vitl.pth"
+        depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth"
+        
     os.makedirs("models/sam2", exist_ok=True)
     os.makedirs("models/depth_anything_v2", exist_ok=True)
     
     if not os.path.exists(sam2_ckpt):
-        print("Downloading SAM 2 Small...")
+        print(f"Downloading SAM 2 ({deploy_env})...")
         urllib.request.urlretrieve(sam2_url, sam2_ckpt)
         
     if not os.path.exists(depth_ckpt):
-        print("Downloading Depth-Anything-V2 Small...")
+        print(f"Downloading Depth-Anything-V2 ({deploy_env})...")
         urllib.request.urlretrieve(depth_url, depth_ckpt)
 
     sam_wrapper = SAM2BaseWrapper(model_cfg=sam2_cfg, checkpoint_path=sam2_ckpt)

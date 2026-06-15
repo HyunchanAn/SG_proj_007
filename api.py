@@ -19,34 +19,47 @@ from sg_terra.match.engine import KnowledgeEngine
 models: Dict[str, Any] = {}
 
 def download_models_if_needed():
-    """Download the small models if they don't exist, similar to app.py"""
-    sam2_ckpt = "models/sam2/sam2_hiera_small.pt"
-    sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt"
+    """Download the models if they don't exist, based on DEPLOY_ENV"""
+    deploy_env = os.environ.get("DEPLOY_ENV", "local")
     
-    depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vits.pth"
-    depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
-    
+    if deploy_env == "cloud":
+        sam2_cfg = "sam2_hiera_s.yaml"
+        sam2_ckpt = "models/sam2/sam2_hiera_small.pt"
+        sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt"
+        
+        depth_encoder = "vits"
+        depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vits.pth"
+        depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth"
+    else:
+        sam2_cfg = "sam2_hiera_l.yaml"
+        sam2_ckpt = "models/sam2/sam2_hiera_large.pt"
+        sam2_url = "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_large.pt"
+        
+        depth_encoder = "vitl"
+        depth_ckpt = "models/depth_anything_v2/depth_anything_v2_vitl.pth"
+        depth_url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth"
+        
     os.makedirs("models/sam2", exist_ok=True)
     os.makedirs("models/depth_anything_v2", exist_ok=True)
     
     if not os.path.exists(sam2_ckpt):
-        print("Downloading SAM 2 Small...")
+        print(f"Downloading SAM 2 ({deploy_env})...")
         urllib.request.urlretrieve(sam2_url, sam2_ckpt)
         
     if not os.path.exists(depth_ckpt):
-        print("Downloading Depth-Anything-V2 Small...")
+        print(f"Downloading Depth-Anything-V2 ({deploy_env})...")
         urllib.request.urlretrieve(depth_url, depth_ckpt)
     
-    return sam2_ckpt, depth_ckpt
+    return sam2_cfg, sam2_ckpt, depth_encoder, depth_ckpt
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("Loading SG-TERRA AI Models...")
-    sam2_ckpt, depth_ckpt = download_models_if_needed()
+    sam2_cfg, sam2_ckpt, depth_encoder, depth_ckpt = download_models_if_needed()
     
-    sam_wrapper = SAM2BaseWrapper(model_cfg="sam2_hiera_s.yaml", checkpoint_path=sam2_ckpt)
-    depth_wrapper = DepthAnythingV2Wrapper(encoder="vits", checkpoint_path=depth_ckpt)
+    sam_wrapper = SAM2BaseWrapper(model_cfg=sam2_cfg, checkpoint_path=sam2_ckpt)
+    depth_wrapper = DepthAnythingV2Wrapper(encoder=depth_encoder, checkpoint_path=depth_ckpt)
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
     match_engine = KnowledgeEngine(db_path="data/database/film_properties.csv")
     

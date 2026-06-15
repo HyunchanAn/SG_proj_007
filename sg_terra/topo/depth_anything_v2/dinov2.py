@@ -10,7 +10,7 @@
 from functools import partial
 import math
 import logging
-from typing import Sequence, Tuple, Union, Callable
+from typing import Sequence, Tuple, Union, Callable, Any
 
 import torch
 import torch.nn as nn

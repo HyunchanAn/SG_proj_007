@@ -1,4 +1,4 @@
-# [프로젝트 제안서] AI 기반 표면 분석 및 필름 추천
+# AI 기반 표면 분석
 
 프로젝트 코드: SG_proj_007
 프로젝트 별칭: SG-TERRA (Topographic Evaluation & Resin-film Recommendation AI)

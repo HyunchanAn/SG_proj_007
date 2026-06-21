@@ -219,3 +219,6 @@
 - `sg_terra/match` 디렉터리 및 더미 물성 데이터베이스 제거
 - `app.py`, `api.py`, `main.py` 내의 추천 엔진 파이프라인 및 응답값 일괄 삭제
 - `Readme.md` 문서를 점착 필름 추천 없이 단일 표면 재구성 파이프라인으로 갱신
+
+
+[2026-06-22] 대규모 아키텍처 통일성 반영: pyproject.toml, Dockerfile, docker-compose.yml, CI/CD 추가 완료.

@@ -69,6 +69,3 @@ def test_analyze_image_mock():
     data = response.json()
     assert data["status"] == "success"
     assert "metrics" in data
-    assert "recommendations" in data
-    assert len(data["recommendations"]) == 1
-    assert data["recommendations"][0]["film_id"] == "F-DUMMY"

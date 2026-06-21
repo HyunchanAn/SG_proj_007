@@ -34,7 +34,8 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "black>=23.0.0",
-    "isort>=5.0.0"
+    "isort>=5.0.0",
+    "httpx"
 ]
 [tool.setuptools.packages.find]
 where = ["."]

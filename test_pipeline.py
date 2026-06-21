@@ -4,7 +4,6 @@ import time
 import cv2
 
 from sg_terra.curv.curvature import CurvatureAnalyzer
-from sg_terra.match.engine import KnowledgeEngine
 
 # import pipeline modules
 from sg_terra.seg.sam2_wrapper import SAM2BaseWrapper
@@ -33,9 +32,6 @@ def main():
         checkpoint_path="models/depth_anything_v2/depth_anything_v2_vitl.pth"
     )
     curv_analyzer = CurvatureAnalyzer(smoothing_sigma=2.0)
-
-    db_path = "data/database/film_properties.csv"
-    match_engine = KnowledgeEngine(db_path=db_path)
 
     print("\n--------------------------------------------------")
     print("Executing Pipeline with Actual Models...")
@@ -74,30 +70,13 @@ def main():
         f"[Analysis Result] Estimated Minimum Curvature Radius (R) = {expected_r_mm} mm"
     )
 
-    # Step 4: Material Matching
-    t0 = time.time()
-    recommendations = match_engine.recommend(
-        measured_curvature=expected_r_mm, measured_roughness=1.0
-    )
-    t_match = time.time() - t0
-
     end_total = time.time()
-
-    print("\n--------------------------------------------------")
-    print("Recommendation Results:")
-    if not recommendations:
-        print("No suitable films found for the given curvature.")
-    else:
-        for idx, r in enumerate(recommendations, 1):
-            print(f" {idx}. {r['film_name']} (ID: {r['film_id']})")
-            print(f"    - Max Curvature Capacity: {r['max_curvature_radius']} mm")
 
     print("\n--------------------------------------------------")
     print("Pipeline Latency Summary:")
     print(f" - Segmentation (SAM 2)     : {t_seg * 1000:.2f} ms")
     print(f" - Depth Est. (Depth-V2)    : {t_depth * 1000:.2f} ms")
     print(f" - Curvature Analysis       : {t_curv * 1000:.2f} ms")
-    print(f" - Material Matching Engine : {t_match * 1000:.2f} ms")
     print(f" = Total Pipeline Execution : {(end_total - start_total) * 1000:.2f} ms")
 
 

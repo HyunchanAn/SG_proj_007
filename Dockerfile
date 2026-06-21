@@ -1,28 +1,18 @@
-FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    libgl1 \
-    libglib2.0-0 \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Install Python 3.10
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y python3.10 python3.10-distutils curl \
+    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml ./
+RUN python3.10 -m pip install --no-cache-dir -e .
 
-# Copy project files
 COPY . .
 
-# Install the project as a library
-RUN pip install --no-cache-dir -e .
-
-# Expose Streamlit & FastAPI ports
-EXPOSE 8501 8000
-
-# Default Command: Streamlit (To run API instead, override CMD with uvicorn)
-# docker run -p 8000:8000 sg_terra uvicorn api:app --host 0.0.0.0 --port 8000
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

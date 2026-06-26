@@ -223,3 +223,6 @@
 
 [2026-06-22] 대규모 아키텍처 통일성 반영: pyproject.toml, Dockerfile, docker-compose.yml, CI/CD 추가 완료.
 [2026-06-22] CI/CD 빌드 오류 수정: deprecated된 match engine 테스트 및 api endpoint response assertions 제거, pyproject.toml에 pytest pythonpath = ["."] 설정을 추가하여 ModuleNotFoundError를 해결함.
+
+
+2026-06-27: 불필요한 빌드 캐시, pycache, egg-info 등 임시 파일 일괄 정리 및 루트 경로 대청소 완료.

@@ -10,13 +10,36 @@
 
 ## 기술 아키텍처 및 워크플로우
 
-### 아키텍처 다이어그램
+### 아키텍처 다이어그램 (고도화)
 ```mermaid
 graph TD
-    A["강판 이미지"] --> B["SAM 2 세그멘테이션"]
-    A --> C["Depth-Anything-V2"]
-    B --> D["3D 지형 분석"]
-    C --> D
+    subgraph Data Input
+        A["Raw 강판 이미지"] 
+        M["Scale Reference (마커/단위)"]
+    end
+
+    subgraph Segmentation & ROI (SAM 2)
+        A --> B["이미지 인코딩"]
+        B --> C["Prompt (Point/Box) 입력"]
+        C --> D["ROI Mask & 강판 영역 추출"]
+    end
+
+    subgraph 3D Depth Estimation (Depth-Anything-V2)
+        D --> E["Masked Image Input"]
+        E --> F["Relative Depth Map 생성"]
+        M --> G["Scale Calibration"]
+        F --> G
+        G --> H["Absolute Depth 변환"]
+    end
+
+    subgraph Topographic Analysis
+        H --> I["3D Point Cloud 생성"]
+        I --> J["Surface Normal 계산"]
+        J --> K["Gaussian Curvature (K) 추출"]
+        K --> L["가공 응력 집중 구간 예측 및 매핑"]
+    end
+
+    L --> Z["최종 시각화 및 결과 리포트 출력"]
 ```
 
 ## 1. 요약

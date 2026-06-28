@@ -15,4 +15,4 @@ RUN python3.10 -m pip install --no-cache-dir -e .
 
 COPY . .
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8007"]

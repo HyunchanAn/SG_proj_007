@@ -55,10 +55,10 @@ def main():
 
     t_curv = time.time() - t0
 
-    # convert highest curvature to a mock physical radius R (mm)
-    # For testing, we assume the highest stress point translates to a 3.5mm radius
+    # convert highest curvature to a physical radius R (mm)
     highest_stress_val = critical_vals[0]
-    estimated_r_mm = 3.5
+    estimated_r_mm = 1.0 / np.sqrt(np.abs(highest_stress_val)) if highest_stress_val != 0 else 0
+    estimated_r_mm = round(estimated_r_mm, 2)
     print(
         f"\n[Analysis Result] Max Stress Point found at {critical_coords[0]} with raw curvature {highest_stress_val:.4f}"
     )

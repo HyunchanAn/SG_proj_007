@@ -1,3 +1,4 @@
+# SG-TERRA 3D 지형 분석 모듈의 FastAPI 엔드포인트(/health, /api/v1/analyze) 및 모의 분석 모델 연동 무결성을 검증하는 API 테스트 코드입니다.
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient

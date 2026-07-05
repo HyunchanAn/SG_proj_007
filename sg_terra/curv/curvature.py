@@ -2,6 +2,7 @@ from typing import Optional
 
 import numpy as np
 from scipy.ndimage import gaussian_filter
+from loguru import logger
 
 
 class CurvatureAnalyzer:
@@ -45,6 +46,7 @@ class CurvatureAnalyzer:
         if mask is not None:
             K[~mask] = 0.0
 
+        logger.info(f"Gaussian curvature computation complete. Shape: {K.shape}")
         return K
 
     def calculate_mean_curvature(
@@ -71,6 +73,7 @@ class CurvatureAnalyzer:
         if mask is not None:
             H[~mask] = 0.0
 
+        logger.info(f"Mean curvature computation complete. Shape: {H.shape}")
         return H
 
     def find_critical_points(
@@ -85,6 +88,7 @@ class CurvatureAnalyzer:
         :param curvature_map: Gaussian 또는 Mean Curvature 배열
         :return: (상위 k개의 최대 곡률값, 해당 좌표 리스트)
         """
+        logger.debug(f"Locating top-{top_k} critical stress points in curvature map.")
         search_space = np.abs(curvature_map)
 
         if mask is not None:
@@ -96,6 +100,9 @@ class CurvatureAnalyzer:
         # 1D 인덱스를 2D y, x 좌표로 변환
         coords = [np.unravel_index(idx, search_space.shape) for idx in flat_indices]
         values = [curvature_map[y, x] for y, x in coords]
+
+        if values:
+            logger.info(f"Top critical point identified. Max curvature value: {values[0]:.6f} at coordinate {coords[0]}")
 
         return values, coords
 

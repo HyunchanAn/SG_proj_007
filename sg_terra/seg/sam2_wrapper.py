@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 import numpy as np
 import torch
+from loguru import logger
 
 
 class SAM2BaseWrapper:
@@ -28,7 +29,7 @@ class SAM2BaseWrapper:
         else:
             self.device = torch.device(device)
 
-        print(f"Initializing SAM 2 Wrapper on: {self.device}")
+        logger.info(f"Initializing SAM 2 Wrapper on device: {self.device}")
         self.model_cfg = model_cfg
         self.checkpoint_path = checkpoint_path
 
@@ -52,12 +53,14 @@ class SAM2BaseWrapper:
         from sam2.build_sam import build_sam2
         from sam2.sam2_image_predictor import SAM2ImagePredictor
 
-        print("Loading SAM 2 checkpoints...")
+        logger.info(f"Loading SAM 2 checkpoints from {self.checkpoint_path}...")
+        t0 = time.time()
         self.model = build_sam2(
             self.model_cfg, self.checkpoint_path, device=self.device
         )
         self.predictor = SAM2ImagePredictor(self.model)
-        print("SAM 2 loaded successfully.")
+        t1 = time.time()
+        logger.info(f"SAM 2 checkpoints loaded successfully in {(t1 - t0)*1000:.2f} ms.")
 
     def segment_target(
         self,
@@ -83,11 +86,14 @@ class SAM2BaseWrapper:
             prompt_points = np.array([[w // 2, h // 2]])
             prompt_labels = np.array([1])
 
+        t0 = time.time()
         masks, scores, logits = self.predictor.predict(
             point_coords=prompt_points,
             point_labels=prompt_labels,
             multimask_output=False,
         )
+        t1 = time.time()
+        logger.info(f"SAM 2 segmentation complete. Mask shape: {masks[0].shape}, Confidence Score: {scores[0]:.4f}, Latency: {(t1 - t0)*1000:.2f} ms")
 
         return masks[0].astype(bool)
 

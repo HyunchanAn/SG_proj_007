@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 import numpy as np
 import torch
+from loguru import logger
 
 
 class DepthAnythingV2Wrapper:
@@ -28,7 +29,7 @@ class DepthAnythingV2Wrapper:
         else:
             self.device = torch.device(device)
 
-        print(f"Initializing Depth-Anything-V2 Wrapper on: {self.device}")
+        logger.info(f"Initializing Depth-Anything-V2 Wrapper on device: {self.device}")
         self.encoder = encoder
         self.checkpoint_path = checkpoint_path
         self.model: Any = None
@@ -63,11 +64,13 @@ class DepthAnythingV2Wrapper:
                 "out_channels": [256, 512, 1024, 1024],
             },
         }
-        print("Loading Depth-Anything-V2 checkpoints...")
+        logger.info(f"Loading Depth-Anything-V2 checkpoints from {self.checkpoint_path}...")
+        t0 = time.time()
         self.model = DepthAnythingV2(**model_configs[self.encoder])
         self.model.load_state_dict(torch.load(self.checkpoint_path, map_location="cpu"))
         self.model = self.model.to(self.device).eval()
-        print("Depth-Anything-V2 loaded successfully.")
+        t1 = time.time()
+        logger.info(f"Depth-Anything-V2 loaded successfully in {(t1 - t0)*1000:.2f} ms.")
 
     def estimate_depth(
         self, image: np.ndarray, mask: Optional[np.ndarray] = None
@@ -91,7 +94,10 @@ class DepthAnythingV2Wrapper:
             proc_img = image
 
         # Real inference
+        t0 = time.time()
         depth = self.model.infer_image(proc_img)
+        t1 = time.time()
+        logger.info(f"Depth estimation complete. Depth map shape: {depth.shape}, Latency: {(t1 - t0)*1000:.2f} ms")
         return depth
 
 

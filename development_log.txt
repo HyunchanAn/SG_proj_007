@@ -106,3 +106,12 @@
 - 002, 003, 007 모듈: docker-compose.yml 맵핑 포트(8000)와 Dockerfile 실행 포트 충돌 문제 해결 (8000으로 내부 포트 통일)
 - 007 모듈: 초기 SAM 2 및 Depth Anything V2 가중치 대용량 다운로드 대응을 위한 타임아웃 연장
 - 실제 샘플 데이터로 테스트 재실행 결과, 100% (2/2) PASSED 검증 완료 및 보고서 갱신
+
+---
+Date: 2026-07-14
+Author: Antigravity
+
+[Updates]
+- Hardware Specs updated in README.md from RTX 5080/Windows to Apple M2 Pro/macOS.
+- Completed all local E2E and unit tests on macOS successfully without abort traps.
+- Verified GitHub Actions CI/CD workflows for the projects.

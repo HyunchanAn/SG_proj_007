@@ -32,3 +32,7 @@ models/sam2/*
 !models/sam2/.gitkeep
 models/depth_anything_v2/*
 !models/depth_anything_v2/.gitkeep
+test_out.log
+demo_ui/do_refactor*.py
+demo_ui/find_indices.py
+demo_ui/refactor.py

@@ -23,7 +23,7 @@ class DepthAnythingV2Wrapper:
             if torch.backends.mps.is_available():
                 self.device = torch.device("mps")
             elif torch.cuda.is_available():
-                self.device = torch.device("cuda")
+                self.device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
             else:
                 self.device = torch.device("cpu")
         else:

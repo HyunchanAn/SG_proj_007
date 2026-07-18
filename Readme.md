@@ -6,7 +6,7 @@
 ![Status](https://img.shields.io/badge/Status-Active-success)
 ![Python](https://img.shields.io/badge/Python-3.x-blue)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch_SAM2-orange)
-![Hardware](https://img.shields.io/badge/Hardware-RTX_5080-lightgrey)
+![Hardware](https://img.shields.io/badge/Hardware-Apple_M2_Pro-lightgrey)
 
 ## 기술 아키텍처 및 워크플로우
 
@@ -106,7 +106,7 @@ uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 - 모듈: CURV (곡률 분석): 생성된 3D 지형에서 Curvature 계산 및 임계 지점 식별.
 
 ## 6. 구현 전략 (하드웨어 및 소프트웨어)
-- 컴퓨팅 파워: AMD Ryzen 9 9900X + RTX 5080.
+- 컴퓨팅 파워: MacBook Pro 14 (2023), Apple M2 Pro, 16GB Memory
 - 주요 과제 및 해결 방안:
   - 정반사: 금속 표면 반사광으로 인한 오차는 Normal Map 정규화 알고리즘을 통해 보정.
   - 스케일 캘리브레이션: 정확한 곡률 수치 도출을 위해 이미지 내 참조 마커를 활용한 단위 환산 적용.
@@ -116,7 +116,7 @@ uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 
 ### A. 테스트 환경
 - 로컬 하드웨어: MacBook Pro M2 (16GB RAM, MPS 가속)
-- 운영 하드웨어: AMD Ryzen 9 9900X + NVIDIA RTX 5080 (16GB VRAM)
+- 운영 하드웨어: MacBook Pro 14 (2023), Apple M2 Pro, 16GB Memory
 - 소프트웨어: Python 3.10+, PyTorch 2.4 (CUDA 12.0 / MPS), Streamlit 1.35.0
 
 ### B. 평가 지표 및 결과

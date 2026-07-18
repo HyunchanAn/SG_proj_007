@@ -79,6 +79,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="SG-TERRA Headless API", version="0.1.0", lifespan=lifespan)
 
+import torch
+import gc
+from fastapi import Request
+
+@app.middleware("http")
+async def clear_vram_middleware(request: Request, call_next):
+    response = await call_next(request)
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+    return response
+
 
 @app.get("/health")
 def health_check():

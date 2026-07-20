@@ -40,3 +40,6 @@ demo_ui/refactor.py
 # Security Rules Auto-Appended
 raw_data/
 *.db
+*.log
+.coverage
+.pytest_cache/

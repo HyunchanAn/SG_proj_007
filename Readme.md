@@ -6,7 +6,7 @@
 ![Status](https://img.shields.io/badge/Status-Active-success)
 ![Python](https://img.shields.io/badge/Python-3.x-blue)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch_SAM2-orange)
-![Hardware](https://img.shields.io/badge/Hardware-Apple_M2_Pro-lightgrey)
+![Hardware](https://img.shields.io/badge/Hardware-Mac_M2_Pro_%7C_Win_RTX5080-lightgrey)
 
 ## 기술 아키텍처 및 워크플로우
 
@@ -149,3 +149,6 @@ python test_pipeline.py
 - [CI/CD]: 통합 E2E 테스트 검사 통과 및 전체 모듈 연동 보고서 발간 완료. (2026-06-29)
 - 3D 곡률 반경(R) 추정 시 정적 하드코딩(10.0)을 제거하고 물리적 스케일 기반 연산식으로 보정.
 - pyproject.toml 내 sam-2 의존성 패키지 긴급 추가 및 빌드 에러 핫픽스 완료.
+
+---
+*Last Updated: 2026-07-19 (Hybrid Environment & MSA Integration)*
